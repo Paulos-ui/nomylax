@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nomylax | Financial control plane for autonomous AI agents</title>
+<meta name="description" content="Give AI agents money. Not unlimited power. Nomylax enforces programmable budgets, risk controls and treasury limits for autonomous agents on Base.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..500;1,6..72,200..400&family=Inter+Tight:wght@400;500;600&family=Jost:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   NOMYLAX — Color Direction B
+   ============================================================ */
+:root{
+  --midnight:#0B1020;
+  --midnight-deep:#070B16;
+  --graphite:#151A26;
+  --slate:#1F2433;
+  --cobalt:#2962FF;
+  --cobalt-dim:#1B3E9E;
+  --ice:#66E1FF;
+  --silver:#E6EAF2;
+  --gold:#D4AF37;
+  --gold-dim:#8A7328;
+
+  --text-1:#E6EAF2;
+  --text-2:#9AA4BC;
+  --text-3:#67718C;
+
+  --line:rgba(230,234,242,.07);
+  --line-2:rgba(230,234,242,.13);
+  --line-gold:rgba(212,175,55,.28);
+
+  --green:#3FD08A;
+  --amber:#E8B04B;
+  --coral:#FF5C6C;
+
+  --display:"Newsreader",Georgia,serif;
+  --ui:"Inter Tight",system-ui,-apple-system,sans-serif;
+  --caps:"Jost",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+
+  --gut:clamp(20px,5vw,72px);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--midnight);
+  color:var(--text-1);
+  font-family:var(--ui);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:rgba(41,98,255,.35);color:#fff}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+svg{display:block}
+
+/* ---------- Architectural peristyle: the only Greek reference ---------- */
+.peristyle{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:repeating-linear-gradient(to right,
+    rgba(230,234,242,.035) 0 1px, transparent 1px calc(100% / 12));
+  background-size:100% 100%;
+  mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent);
+}
+.vignette{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 78% 8%, rgba(41,98,255,.16), transparent 60%),
+    radial-gradient(90% 60% at 10% 55%, rgba(102,225,255,.05), transparent 65%);
+}
+main,header,footer{position:relative;z-index:1}
+
+/* ---------- Type primitives ---------- */
+.eyebrow{
+  font-family:var(--caps);font-size:11px;font-weight:400;
+  letter-spacing:.24em;text-transform:uppercase;color:var(--text-3);
+  display:flex;align-items:center;gap:12px;
+}
+.eyebrow::before{
+  content:"";width:26px;height:1px;background:var(--line-gold);flex:none;
+}
+h1,h2,h3{font-family:var(--display);font-weight:300;letter-spacing:-.015em;line-height:1.06}
+h1{font-size:clamp(40px,6.4vw,76px)}
+h2{font-size:clamp(30px,4.4vw,54px)}
+h3{font-size:clamp(20px,2.2vw,27px);line-height:1.2}
+em{font-style:italic;color:var(--gold)}
+.lead{color:var(--text-2);font-size:clamp(15px,1.15vw,17.5px);max-width:56ch}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.label{font-family:var(--caps);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-3)}
+
+/* ---------- Shell ---------- */
+.wrap{max-width:1320px;margin:0 auto;padding:0 var(--gut)}
+section{padding:clamp(76px,9vw,140px) 0;position:relative}
+.rule{height:1px;background:linear-gradient(90deg,transparent,var(--line-2) 18%,var(--line-2) 82%,transparent);position:relative}
+.rule::after{
+  content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
+  border:1px solid var(--line-gold);border-radius:50%;background:var(--midnight);
+}
+
+/* ---------- Header ---------- */
+header{
+  position:sticky;top:0;z-index:60;
+  backdrop-filter:blur(14px);
+  background:rgba(11,16,32,.72);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-name{font-family:var(--caps);font-weight:400;letter-spacing:.26em;font-size:14px;text-transform:uppercase}
+.nav-links{display:flex;gap:30px}
+.nav-links a{
+  font-size:13.5px;color:var(--text-2);transition:color .25s var(--ease);position:relative;padding:4px 0;
+}
+.nav-links a:hover{color:var(--text-1)}
+.nav-links a::after{
+  content:"";position:absolute;left:0;bottom:0;height:1px;width:0;background:var(--gold);
+  transition:width .3s var(--ease);
+}
+.nav-links a:hover::after{width:100%}
+.nav-cta{display:flex;align-items:center;gap:14px}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:12px 22px;border-radius:3px;font-size:13.5px;font-weight:500;
+  border:1px solid transparent;transition:all .3s var(--ease);white-space:nowrap;
+}
+.btn-primary{
+  background:var(--cobalt);color:#fff;
+  box-shadow:0 0 0 1px rgba(102,225,255,.18), 0 12px 34px -12px rgba(41,98,255,.75);
+}
+.btn-primary:hover{background:#3D74FF;transform:translateY(-1px);
+  box-shadow:0 0 0 1px rgba(102,225,255,.35), 0 18px 44px -12px rgba(41,98,255,.9)}
+.btn-ghost{border-color:var(--line-2);color:var(--text-1)}
+.btn-ghost:hover{border-color:var(--line-gold);background:rgba(212,175,55,.05)}
+.btn-text{color:var(--text-2);font-size:13.5px;padding:12px 0}
+.btn-text:hover{color:var(--gold)}
+.btn-sm{padding:9px 16px;font-size:12.5px}
+
+/* ---------- Reveal ---------- */
+[data-reveal]{opacity:0;transform:translateY(22px);transition:opacity .9s var(--ease),transform .9s var(--ease);transition-delay:var(--d,0ms)}
+[data-reveal].in{opacity:1;transform:none}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{padding-top:clamp(48px,6vw,84px);padding-bottom:clamp(40px,5vw,70px);overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1fr);gap:clamp(28px,4vw,64px);align-items:center}
+.hero h1{margin:24px 0 0}
+.hero h1 .l2{display:block;color:var(--text-3)}
+.hero h1 .l2 em{color:var(--gold)}
+.hero .lead{margin-top:26px}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:36px}
+.hero-meta{display:flex;gap:26px;margin-top:42px;padding-top:24px;border-top:1px solid var(--line)}
+.hero-meta div{display:flex;flex-direction:column;gap:5px}
+.hero-meta .v{font-family:var(--mono);font-size:17px;color:var(--silver)}
+
+/* Hero visual */
+.stage{position:relative;aspect-ratio:1/1;width:100%;max-width:640px;margin-inline:auto}
+.stage svg{width:100%;height:100%}
+.orbit-ring{fill:none;stroke:rgba(230,234,242,.06);stroke-width:1}
+.orbit-dash{fill:none;stroke:rgba(102,225,255,.14);stroke-width:1;stroke-dasharray:2 10;
+  transform-origin:300px 300px;animation:spin 90s linear infinite}
+.policy-ring{fill:none;stroke:var(--line-gold);stroke-width:1;stroke-dasharray:3 7;
+  transform-origin:300px 300px;animation:spin-r 44s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spin-r{to{transform:rotate(-360deg)}}
+.trace{fill:none;stroke:rgba(230,234,242,.09);stroke-width:1}
+.node-body{fill:var(--graphite);stroke:var(--line-2);stroke-width:1;transition:stroke .4s,fill .4s}
+.node.active .node-body{stroke:var(--ice);fill:#182238}
+.node-label{font-family:var(--caps);font-size:10px;letter-spacing:.18em;fill:var(--text-3);text-anchor:middle;text-transform:uppercase;transition:fill .4s}
+.node.active .node-label{fill:var(--ice)}
+.node-sub{font-family:var(--mono);font-size:9px;fill:var(--text-3);text-anchor:middle;opacity:.7}
+.core-plate{fill:rgba(21,26,38,.9);stroke:rgba(212,175,55,.35);stroke-width:1}
+.core-glow{fill:url(#coreGrad);opacity:.85}
+.ring-flash{fill:none;stroke:var(--cobalt);stroke-width:1.5;opacity:0}
+.base-node rect{fill:var(--graphite);stroke:var(--line-2)}
+.packet-dot{filter:url(#glow)}
+.stage-readout{
+  position:absolute;left:0;bottom:2%;width:min(300px,68%);
+  background:rgba(13,18,32,.86);border:1px solid var(--line-2);border-left:2px solid var(--gold);
+  backdrop-filter:blur(10px);padding:14px 16px;border-radius:2px;
+}
+.ro-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+.ro-agent{font-family:var(--caps);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--silver)}
+.ro-amt{font-family:var(--mono);font-size:15px;color:var(--ice)}
+.ro-line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);padding:3.5px 0;opacity:0;transform:translateX(-6px);transition:all .4s var(--ease)}
+.ro-line.on{opacity:1;transform:none}
+.ro-line b{font-family:var(--mono);font-weight:400;color:var(--text-2)}
+.ro-verdict{
+  margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
+  font-family:var(--caps);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;opacity:0;transition:opacity .4s;
+}
+.ro-verdict.on{opacity:1}
+.v-ok{color:var(--green)}
+.v-no{color:var(--coral)}
+.stage-legend{position:absolute;right:0;top:2%;text-align:right}
+.stage-legend .label{margin-bottom:6px}
+.legend-item{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:11px;color:var(--text-3);padding:2px 0}
+.legend-item i{width:14px;height:1px;background:var(--text-3);display:block}
+.legend-item.ok i{background:var(--green)}
+.legend-item.no i{background:var(--coral)}
+
+/* ============================================================
+   SIGNAL STRIP
+   ============================================================ */
+.strip{border-block:1px solid var(--line);padding:0;background:rgba(21,26,38,.4)}
+.strip-tags{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--line)}
+.strip-tags span{
+  flex:1;min-width:150px;padding:15px 20px;text-align:center;
+  font-family:var(--caps);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-3);
+  border-right:1px solid var(--line);
+}
+.strip-tags span:last-child{border-right:0}
+.strip-metrics{display:grid;grid-template-columns:repeat(4,1fr)}
+.metric{padding:26px 20px;border-right:1px solid var(--line)}
+.metric:last-child{border-right:0}
+.metric .v{font-family:var(--mono);font-size:clamp(22px,2.4vw,30px);color:var(--silver);letter-spacing:-.02em}
+.metric .k{font-family:var(--caps);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-3);margin-top:7px}
+.metric.gold .v{color:var(--gold)}
+
+/* ============================================================
+   PROBLEM — asymmetric editorial
+   ============================================================ */
+.prob-head{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,64px);align-items:end;margin-bottom:clamp(40px,5vw,72px)}
+.prob-list{display:flex;flex-direction:column}
+.prob-row{
+  display:grid;grid-template-columns:minmax(0,1fr) 170px minmax(0,1.1fr);
+  gap:clamp(20px,3vw,48px);align-items:center;
+  padding:clamp(28px,3.4vw,44px) 0;border-top:1px solid var(--line);
+}
+.prob-row:last-child{border-bottom:1px solid var(--line)}
+.prob-row h3{margin-bottom:0}
+.prob-row p{color:var(--text-2);font-size:14.5px}
+.prob-fig{height:76px;display:flex;align-items:center;justify-content:center}
+.prob-fig svg{overflow:visible}
+.pf-line{stroke:var(--line-2);stroke-width:1;fill:none}
+.pf-hot{stroke:var(--coral);stroke-width:1.5;fill:none}
+.pf-amber{stroke:var(--amber);stroke-width:1.5;fill:none}
+.pf-dash{stroke:var(--text-3);stroke-width:1;fill:none;stroke-dasharray:3 4}
+
+/* ============================================================
+   MODEL
+   ============================================================ */
+.model-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(30px,4vw,70px);align-items:center}
+.model-points{margin-top:34px;display:flex;flex-direction:column;gap:0}
+.mp{display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--line)}
+.mp:last-child{border-bottom:1px solid var(--line)}
+.mp .k{font-family:var(--caps);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);width:96px;flex:none;padding-top:3px}
+.mp p{font-size:14.5px;color:var(--text-2)}
+.model-svg text{font-family:var(--caps)}
+.msvg-box{fill:rgba(21,26,38,.85);stroke:var(--line-2)}
+.msvg-lbl{font-size:10px;letter-spacing:.16em;fill:var(--text-2);text-anchor:middle;text-transform:uppercase}
+.msvg-val{font-family:var(--mono);font-size:12px;fill:var(--ice);text-anchor:middle}
+.msvg-path{fill:none;stroke:var(--line-2);stroke-width:1}
+.flow{fill:none;stroke:var(--ice);stroke-width:1.6;stroke-linecap:round;
+  stroke-dasharray:14 300;opacity:.9;animation:flow 3.4s linear infinite}
+@keyframes flow{from{stroke-dashoffset:314}to{stroke-dashoffset:0}}
+
+/* ============================================================
+   PIPELINE
+   ============================================================ */
+.pipe{margin-top:clamp(40px,5vw,72px);position:relative}
+.pipe-track{position:absolute;left:0;right:0;top:26px;height:1px;background:var(--line-2)}
+.pipe-fill{position:absolute;left:0;top:26px;height:1px;background:linear-gradient(90deg,var(--cobalt),var(--ice));width:0;transition:width 1.6s var(--ease);box-shadow:0 0 10px rgba(102,225,255,.6)}
+.pipe-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(12px,2vw,28px);position:relative}
+.pstep{padding-top:0}
+.pdot{width:52px;height:52px;border-radius:50%;border:1px solid var(--line-2);background:var(--midnight);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--text-3);
+  transition:all .6s var(--ease);position:relative;z-index:2}
+.pstep.on .pdot{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 5px rgba(212,175,55,.07)}
+.pstep h3{font-family:var(--caps);font-size:13px;letter-spacing:.18em;text-transform:uppercase;font-weight:400;margin:20px 0 8px;color:var(--silver)}
+.pstep p{font-size:13.5px;color:var(--text-3);max-width:24ch}
+
+/* ============================================================
+   DECISION DEMO
+   ============================================================ */
+.demo{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(28px,4vw,64px);align-items:start}
+.demo-switch{display:inline-flex;border:1px solid var(--line-2);border-radius:3px;padding:3px;margin-top:30px;background:rgba(21,26,38,.6)}
+.demo-switch button{padding:9px 18px;font-size:12.5px;color:var(--text-3);border-radius:2px;transition:all .3s var(--ease)}
+.demo-switch button.on{background:var(--slate);color:var(--silver);box-shadow:inset 0 0 0 1px var(--line-2)}
+.demo-panel{
+  border:1px solid var(--line-2);background:linear-gradient(160deg,rgba(21,26,38,.95),rgba(11,16,32,.9));
+  border-radius:3px;overflow:hidden;
+}
+.dp-head{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line);background:rgba(31,36,51,.5)}
+.dp-title{font-family:var(--caps);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-2)}
+.dp-live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+.dp-live i{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.dp-body{padding:22px}
+.dp-req{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.dp-req div .k{font-family:var(--caps);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+.dp-req div .v{font-family:var(--mono);font-size:14px;color:var(--silver);margin-top:6px}
+.checks{margin-top:6px}
+.check{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);opacity:.28;transition:opacity .45s var(--ease)}
+.check.on{opacity:1}
+.check .ci{width:18px;height:18px;border-radius:50%;border:1px solid var(--line-2);flex:none;position:relative;transition:all .4s}
+.check.on.pass .ci{border-color:var(--green);background:rgba(63,208,138,.12)}
+.check.on.fail .ci{border-color:var(--coral);background:rgba(255,92,108,.12)}
+.check .ci::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--text-3);transition:background .4s}
+.check.on.pass .ci::after{background:var(--green)}
+.check.on.fail .ci::after{background:var(--coral)}
+.check .cn{flex:1;font-size:13.5px;color:var(--text-2)}
+.check .cv{font-family:var(--mono);font-size:12.5px;color:var(--text-3)}
+.check.on.pass .cv{color:var(--green)}
+.check.on.fail .cv{color:var(--coral)}
+.dp-verdict{
+  margin-top:20px;padding:18px 20px;border-radius:2px;display:flex;justify-content:space-between;align-items:center;
+  border:1px solid var(--line-2);background:rgba(11,16,32,.7);opacity:0;transform:translateY(8px);
+  transition:all .5s var(--ease);
+}
+.dp-verdict.on{opacity:1;transform:none}
+.dp-verdict.pass{border-color:rgba(63,208,138,.4);background:rgba(63,208,138,.07)}
+.dp-verdict.fail{border-color:rgba(255,92,108,.4);background:rgba(255,92,108,.07)}
+.dpv-l{font-family:var(--caps);font-size:17px;letter-spacing:.22em;text-transform:uppercase}
+.dp-verdict.pass .dpv-l{color:var(--green)}
+.dp-verdict.fail .dpv-l{color:var(--coral)}
+.dpv-r{text-align:right;font-size:12px;color:var(--text-3)}
+.dpv-r b{display:block;font-family:var(--mono);font-weight:400;font-size:14px;color:var(--silver);margin-top:3px}
+
+/* ============================================================
+   CAPABILITIES BENTO
+   ============================================================ */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(34px,4vw,60px)}
+.cell{background:var(--midnight);padding:clamp(22px,2.6vw,34px);display:flex;flex-direction:column;position:relative;
+  transition:background .45s var(--ease)}
+.cell:hover{background:#0E1424}
+.cell::after{content:"";position:absolute;inset:0;border:1px solid transparent;pointer-events:none;transition:border-color .45s}
+.cell:hover::after{border-color:rgba(212,175,55,.18)}
+.c-a{grid-column:span 3}
+.c-b{grid-column:span 3}
+.c-c{grid-column:span 2}
+.c-d{grid-column:span 2}
+.c-e{grid-column:span 2}
+.c-f{grid-column:span 6}
+.cell h3{margin:14px 0 10px}
+.cell p{font-size:14px;color:var(--text-2);max-width:44ch}
+.cell .label{margin-bottom:0}
+.cell-fig{margin-top:auto;padding-top:26px}
+.c-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:clamp(20px,3vw,48px);align-items:center}
+.audit-stream{font-family:var(--mono);font-size:11.5px;border-left:1px solid var(--line-2);padding-left:18px;max-height:150px;overflow:hidden}
+.audit-line{display:flex;gap:14px;padding:5.5px 0;color:var(--text-3);opacity:0;animation:auditIn .6s var(--ease) forwards}
+.audit-line .t{color:var(--text-3);opacity:.55}
+.audit-line .h{color:var(--ice);opacity:.8}
+.audit-line .s.ok{color:var(--green)}
+.audit-line .s.no{color:var(--coral)}
+@keyframes auditIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   SHADOW MODE
+   ============================================================ */
+.shadow-sec{background:linear-gradient(180deg,transparent,rgba(21,26,38,.55),transparent)}
+.shadow-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(30px,4vw,70px);align-items:center}
+.report{border:1px solid var(--line-2);background:rgba(11,16,32,.72);border-radius:3px;overflow:hidden}
+.report-head{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:rgba(31,36,51,.4)}
+.report-body{padding:6px 22px 22px}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.rrow .k{font-size:13.5px;color:var(--text-2)}
+.rrow .v{font-family:var(--mono);font-size:16px;color:var(--silver)}
+.rrow.ok .v{color:var(--green)}
+.rrow.no .v{color:var(--coral)}
+.rrow.warn .v{color:var(--amber)}
+.rec{margin:20px 22px 22px;padding:16px 18px;border:1px solid rgba(232,176,75,.32);background:rgba(232,176,75,.06);border-radius:2px}
+.rec .label{color:var(--amber);margin-bottom:7px}
+.rec p{font-size:13.5px;color:var(--text-2)}
+.split-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:20px 22px;background:var(--slate)}
+.split-bar i{display:block;height:100%;width:0;transition:width 1.4s var(--ease)}
+.split-bar .a{background:var(--green)}
+.split-bar .b{background:var(--coral)}
+
+/* ============================================================
+   INTELLIGENCE / CHARTS
+   ============================================================ */
+.charts{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(34px,4vw,60px)}
+.chart-card{background:var(--midnight);padding:clamp(20px,2.4vw,30px)}
+.cc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}
+.cc-val{font-family:var(--mono);font-size:26px;color:var(--silver);margin-top:8px}
+.cc-delta{font-family:var(--mono);font-size:12.5px;color:var(--green)}
+.cc-sub{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line);grid-column:1 / -1}
+.draw{stroke-dasharray:1400;stroke-dashoffset:1400;transition:stroke-dashoffset 2.2s var(--ease)}
+.draw.in{stroke-dashoffset:0}
+.area{opacity:0;transition:opacity 1.2s .7s var(--ease)}
+.area.in{opacity:1}
+.bar{transition:height 1.1s var(--ease),y 1.1s var(--ease)}
+.legend-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text-2)}
+.legend-row:last-child{border-bottom:0}
+.legend-row .d{display:flex;align-items:center;gap:10px}
+.legend-row i{width:8px;height:8px;border-radius:2px;display:block}
+.legend-row .p{font-family:var(--mono);color:var(--silver)}
+
+/* ============================================================
+   RISK
+   ============================================================ */
+.risk-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:clamp(30px,4vw,70px);align-items:center}
+.gauge-wrap{position:relative;max-width:400px;margin-inline:auto;width:100%}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.gauge-val{font-family:var(--mono);font-size:60px;line-height:1;color:var(--silver)}
+.gauge-max{font-family:var(--mono);font-size:13px;color:var(--text-3);margin-top:4px}
+.gauge-band{font-family:var(--caps);font-size:12px;letter-spacing:.24em;text-transform:uppercase;margin-top:12px;color:var(--green);transition:color .5s}
+.g-track{fill:none;stroke:rgba(230,234,242,.07);stroke-width:8;stroke-linecap:round}
+.g-prog{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1.6s var(--ease),stroke .6s}
+.bands{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:26px}
+.band{background:var(--midnight);padding:14px;text-align:center;cursor:pointer;transition:background .3s}
+.band:hover{background:#0E1424}
+.band .r{font-family:var(--mono);font-size:12px;color:var(--text-3)}
+.band .n{font-family:var(--caps);font-size:10.5px;letter-spacing:.16em;margin-top:6px;text-transform:uppercase}
+.band.low .n{color:var(--green)}.band.mod .n{color:var(--ice)}.band.high .n{color:var(--amber)}.band.crit .n{color:var(--coral)}
+.factors{display:flex;flex-direction:column}
+.factor{padding:13px 0;border-bottom:1px solid var(--line)}
+.factor .fr{display:flex;justify-content:space-between;font-size:13.5px;color:var(--text-2);margin-bottom:9px}
+.factor .fv{font-family:var(--mono);font-size:12px;color:var(--text-3)}
+.ftrack{height:2px;background:var(--slate);position:relative;overflow:hidden}
+.ftrack i{position:absolute;inset:0 auto 0 0;width:0;background:var(--cobalt);transition:width 1.3s var(--ease)}
+.factor.hot .ftrack i{background:var(--coral)}
+.factor.warn .ftrack i{background:var(--amber)}
+
+/* ============================================================
+   SAFE MODE
+   ============================================================ */
+.safe{transition:background 1.2s var(--ease)}
+.safe.state-watch{background:radial-gradient(80% 50% at 50% 40%,rgba(232,176,75,.07),transparent 70%)}
+.safe.state-safe{background:radial-gradient(80% 50% at 50% 40%,rgba(255,92,108,.09),transparent 70%)}
+.safe-states{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(34px,4vw,56px)}
+.sstate{background:var(--midnight);padding:clamp(22px,2.6vw,32px);position:relative;transition:background .8s var(--ease)}
+.sstate .label{margin-bottom:14px}
+.sstate h3{font-family:var(--caps);font-size:15px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;color:var(--text-3);transition:color .8s}
+.sstate p{font-size:13.5px;color:var(--text-3);margin-top:12px;max-width:34ch}
+.sstate .pulse{width:9px;height:9px;border-radius:50%;background:var(--text-3);margin-bottom:18px;transition:all .8s}
+.sstate.on{background:#0E1424}
+.sstate.on h3{color:var(--silver)}
+.sstate.on p{color:var(--text-2)}
+.sstate.on .pulse{background:var(--ice);box-shadow:0 0 0 4px rgba(102,225,255,.12);animation:pulse 2.6s infinite}
+.sstate.w.on .pulse{background:var(--amber);box-shadow:0 0 0 4px rgba(232,176,75,.14)}
+.sstate.s.on .pulse{background:var(--coral);box-shadow:0 0 0 4px rgba(255,92,108,.14)}
+.sstate.w.on h3{color:var(--amber)}
+.sstate.s.on h3{color:var(--coral)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+.safe-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 clamp(20px,3vw,50px);margin-top:34px}
+.sact{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--text-2)}
+.sact span{color:var(--gold);font-family:var(--mono);font-size:11px;padding-top:3px}
+.safe-toggle{display:inline-flex;gap:8px;margin-top:30px}
+
+/* ============================================================
+   USE CASES
+   ============================================================ */
+.uc{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,4vw,64px);margin-top:clamp(34px,4vw,56px);align-items:start}
+.uc-list{border-top:1px solid var(--line)}
+.uc-item{width:100%;text-align:left;padding:20px 4px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;transition:padding .4s var(--ease)}
+.uc-item .n{font-family:var(--mono);font-size:11px;color:var(--text-3);transition:color .3s}
+.uc-item .t{font-family:var(--display);font-size:22px;font-weight:300;color:var(--text-3);transition:color .3s}
+.uc-item.on{padding-left:16px}
+.uc-item.on .t{color:var(--silver)}
+.uc-item.on .n{color:var(--gold)}
+.uc-item:hover .t{color:var(--text-2)}
+.uc-panel{border:1px solid var(--line-2);background:rgba(21,26,38,.55);border-radius:3px;padding:clamp(22px,2.8vw,34px);min-height:340px}
+.uc-panel h3{margin-bottom:12px}
+.uc-panel .desc{color:var(--text-2);font-size:14.5px;max-width:48ch}
+.uc-policy{margin-top:26px;border-top:1px solid var(--line)}
+.uc-policy .prow{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text-3)}
+.uc-policy .prow b{font-family:var(--mono);font-weight:400;color:var(--silver)}
+.fade-swap{animation:fadeSwap .5s var(--ease)}
+@keyframes fadeSwap{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+.base-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,4vw,64px);align-items:center}
+.base-points{display:grid;grid-template-columns:1fr 1fr;gap:0 clamp(20px,3vw,40px);margin-top:30px}
+.bpt{padding:14px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--text-2);display:flex;gap:11px}
+.bpt i{width:4px;height:4px;background:var(--cobalt);border-radius:50%;margin-top:9px;flex:none}
+.base-mark{display:flex;align-items:center;justify-content:center;aspect-ratio:1.35/1;border:1px solid var(--line);background:radial-gradient(60% 60% at 50% 50%,rgba(41,98,255,.14),transparent 70%)}
+
+/* ============================================================
+   SECURITY STACK
+   ============================================================ */
+.stack{margin-top:clamp(34px,4vw,60px);border:1px solid var(--line);background:var(--graphite)}
+.layer{display:grid;grid-template-columns:56px minmax(0,1fr) minmax(0,1.1fr);gap:clamp(14px,2vw,30px);
+  align-items:center;padding:16px clamp(16px,2vw,26px);border-bottom:1px solid var(--line);
+  background:var(--midnight);transition:background .4s var(--ease);cursor:default;position:relative}
+.layer:last-child{border-bottom:0}
+.layer:hover{background:#0F1526}
+.layer .li{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.layer .ln{font-family:var(--caps);font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--silver)}
+.layer .ld{font-size:13px;color:var(--text-3)}
+.layer::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cobalt);
+  transform:scaleY(0);transform-origin:top;transition:transform .5s var(--ease)}
+.layer:hover::before{transform:scaleY(1)}
+.layer.gold::before{background:var(--gold)}
+
+/* ============================================================
+   TRUST
+   ============================================================ */
+.trust-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(30px,3.5vw,50px)}
+.tcell{background:var(--midnight);padding:clamp(20px,2.4vw,28px)}
+.tcell .v{font-family:var(--mono);font-size:clamp(20px,2.2vw,27px);color:var(--silver);margin-bottom:8px}
+.tcell.ok .v{color:var(--green)}
+.tcell.no .v{color:var(--coral)}
+.tcell.gold .v{color:var(--gold)}
+
+/* ============================================================
+   ONBOARDING PATH
+   ============================================================ */
+.path{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:clamp(34px,4vw,56px)}
+.pnode{background:var(--midnight);padding:clamp(20px,2.2vw,26px);position:relative;transition:background .5s}
+.pnode:hover{background:#0E1424}
+.pnode .n{font-family:var(--mono);font-size:11px;color:var(--gold)}
+.pnode .t{font-family:var(--caps);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--silver);margin:16px 0 8px;line-height:1.5}
+.pnode .d{font-size:12.5px;color:var(--text-3)}
+.pnode .bar{height:1px;background:var(--line-2);margin-top:18px;position:relative;overflow:hidden}
+.pnode .bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--gold);transition:width 1s var(--ease)}
+
+/* ============================================================
+   FINAL CTA + FOOTER
+   ============================================================ */
+.final{text-align:center;padding:clamp(90px,11vw,170px) 0}
+.final .seal{margin:0 auto 40px}
+.final h2{max-width:16ch;margin:0 auto}
+.final .lead{margin:24px auto 0;text-align:center}
+.final-actions{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:40px}
+footer{border-top:1px solid var(--line);padding:48px 0 40px}
+.foot{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between;align-items:flex-start}
+.foot-links{display:flex;gap:44px;flex-wrap:wrap}
+.foot-col{display:flex;flex-direction:column;gap:11px}
+.foot-col a{font-size:13px;color:var(--text-3);transition:color .3s}
+.foot-col a:hover{color:var(--silver)}
+.foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-top:44px;padding-top:22px;border-top:1px solid var(--line);font-size:12px;color:var(--text-3)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:1080px){
+  .hero-grid,.model-grid,.demo,.shadow-grid,.risk-grid,.uc,.base-grid{grid-template-columns:1fr}
+  .stage{max-width:520px}
+  .charts{grid-template-columns:1fr}
+  .path{grid-template-columns:repeat(3,1fr)}
+  .pipe-steps{grid-template-columns:repeat(3,1fr);gap:34px 20px}
+  .pipe-track,.pipe-fill{display:none}
+  .c-f{grid-template-columns:1fr}
+}
+@media(max-width:860px){
+  .nav-links{display:none}
+  .prob-row{grid-template-columns:1fr;gap:18px}
+  .prob-fig{justify-content:flex-start;height:60px}
+  .strip-metrics{grid-template-columns:repeat(2,1fr)}
+  .metric:nth-child(2n){border-right:0}
+  .metric:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .trust-grid{grid-template-columns:repeat(2,1fr)}
+  .prob-head{grid-template-columns:1fr;gap:20px}
+  .c-a,.c-b,.c-c,.c-d,.c-e,.c-f{grid-column:span 6}
+  .safe-states{grid-template-columns:1fr}
+  .safe-actions{grid-template-columns:1fr}
+  .dp-req{grid-template-columns:repeat(2,1fr)}
+  .base-points{grid-template-columns:1fr}
+  .layer{grid-template-columns:34px 1fr;row-gap:6px}
+  .layer .ld{grid-column:2}
+  .path{grid-template-columns:repeat(2,1fr)}
+  .cc-sub{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .pipe-steps{grid-template-columns:1fr;gap:26px}
+  .stage-readout{width:min(260px,80%)}
+  .gauge-val{font-size:46px}
+  .hero-meta{flex-wrap:wrap;gap:18px 26px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;scroll-behavior:auto !important}
+  [data-reveal]{opacity:1;transform:none}
+}
+:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<div class="peristyle"></div>
+<div class="vignette"></div>
+
+<!-- ======================= HEADER ======================= -->
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#D4AF37" stroke-width="1"/>
+        <path d="M20 6 L20 13" stroke="#2962FF" stroke-width="2.4"/>
+        <path d="M12 15 h16 v6 a8 10 0 0 1 -8 10 a8 10 0 0 1 -8 -10 z" fill="none" stroke="#D4AF37" stroke-width="1.3"/>
+        <path d="M20 18 l4 3 -4 3 -4 -3 z" fill="#D4AF37"/>
+      </svg>
+      <span class="brand-name">Nomylax</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#model">Model</a>
+      <a href="#how">How it works</a>
+      <a href="#decision">Decision</a>
+      <a href="#capabilities">Capabilities</a>
+      <a href="#risk">Risk</a>
+      <a href="#trust">Trust</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn-text" href="#architecture">View architecture</a>
+      <a class="btn btn-primary btn-sm" href="/app/onboarding">Launch app</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ======================= HERO ======================= -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow" data-reveal>Base-native financial control for autonomous agents</p>
+      <h1 data-reveal style="--d:80ms">
+        Give AI agents money.
+        <span class="l2">Not <em>unlimited power.</em></span>
+      </h1>
+      <p class="lead" data-reveal style="--d:160ms">
+        Nomylax gives autonomous AI agents controlled financial authority on Base through
+        budgets, policies, risk controls, treasury monitoring, execution rules, and
+        verifiable audit trails. Every request is evaluated before it settles.
+      </p>
+      <div class="hero-actions" data-reveal style="--d:240ms">
+        <a class="btn btn-primary" href="/app/onboarding">
+          Launch app
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11L11 3M11 3H5M11 3v6" stroke="currentColor" stroke-width="1.4"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#decision">Watch demo</a>
+        <a class="btn-text" href="#architecture">View architecture</a>
+      </div>
+      <div class="hero-meta" data-reveal style="--d:320ms">
+        <div><span class="label">Policy enforcement</span><span class="v">Deterministic</span></div>
+        <div><span class="label">Settlement</span><span class="v">Verified</span></div>
+        <div><span class="label">Network</span><span class="v">Base</span></div>
+      </div>
+    </div>
+
+    <!-- ---------- Hero control-plane visualization ---------- -->
+    <div class="stage" data-reveal style="--d:200ms">
+      <svg viewBox="0 0 600 600" role="img" aria-label="Nomylax control plane: agents submit spend requests to a policy ring which approves or blocks them before settlement on Base">
+        <defs>
+          <radialGradient id="coreGrad" cx="50%" cy="50%">
+            <stop offset="0%" stop-color="#2962FF" stop-opacity=".55"/>
+            <stop offset="55%" stop-color="#2962FF" stop-opacity=".12"/>
+            <stop offset="100%" stop-color="#2962FF" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="glow" x="-120%" y="-120%" width="340%" height="340%">
+            <feGaussianBlur stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- orbit geometry -->
+        <circle class="orbit-ring" cx="300" cy="300" r="210"/>
+        <circle class="orbit-dash" cx="300" cy="300" r="168"/>
+        <circle class="orbit-ring" cx="300" cy="300" r="255" opacity=".5"/>
+
+        <!-- static traces -->
+        <path class="trace" id="pR" d="M118 195 L300 300"/>
+        <path class="trace" id="pT" d="M482 195 L300 300"/>
+        <path class="trace" id="pY" d="M118 405 L300 300"/>
+        <path class="trace" id="pO" d="M482 405 L300 300"/>
+        <path class="trace" id="pBase" d="M300 300 L300 528"/>
+        <path class="trace" d="M300 72 L300 182"/>
+
+        <!-- treasury (owner) -->
+        <g>
+          <rect x="238" y="46" width="124" height="26" rx="2" fill="rgba(21,26,38,.9)" stroke="rgba(212,175,55,.3)"/>
+          <text x="300" y="63" class="node-label" style="fill:#D4AF37;letter-spacing:.2em">Owner treasury</text>
+        </g>
+
+        <!-- core -->
+        <circle class="core-glow" cx="300" cy="300" r="150"/>
+        <circle class="policy-ring" cx="300" cy="300" r="118"/>
+        <circle class="ring-flash" id="ringFlash" cx="300" cy="300" r="118"/>
+        <circle class="orbit-ring" cx="300" cy="300" r="96" stroke="rgba(41,98,255,.28)"/>
+        <circle class="core-plate" cx="300" cy="300" r="62"/>
+        <!-- guardian mark: column + crest -->
+        <g opacity=".9">
+          <path d="M300 272 L300 284" stroke="#2962FF" stroke-width="2.6"/>
+          <path d="M285 288 h30 v9 a15 18 0 0 1 -15 18 a15 18 0 0 1 -15 -18 z" fill="none" stroke="#D4AF37" stroke-width="1.2"/>
+          <path d="M300 294 l6 5 -6 5 -6 -5 z" fill="#D4AF37"/>
+          <text x="300" y="336" class="node-label" style="fill:#67718C;font-size:8.5px">Policy ring</text>
+        </g>
+
+        <!-- agent nodes -->
+        <g class="node" id="nR">
+          <circle class="node-body" cx="118" cy="195" r="24"/>
+          <path d="M110 195 h16 M118 187 v16" stroke="#66E1FF" stroke-width="1" opacity=".55"/>
+          <text x="118" y="240" class="node-label">Research</text>
+          <text x="118" y="254" class="node-sub">$20 / day</text>
+        </g>
+        <g class="node" id="nT">
+          <circle class="node-body" cx="482" cy="195" r="24"/>
+          <path d="M474 200 l5 -7 5 5 5 -9" stroke="#66E1FF" stroke-width="1" fill="none" opacity=".55"/>
+          <text x="482" y="240" class="node-label">Trading</text>
+          <text x="482" y="254" class="node-sub">$50 / day</text>
+        </g>
+        <g class="node" id="nY">
+          <circle class="node-body" cx="118" cy="405" r="24"/>
+          <circle cx="118" cy="405" r="7" fill="none" stroke="#66E1FF" stroke-width="1" opacity=".55"/>
+          <text x="118" y="450" class="node-label">Yield</text>
+          <text x="118" y="464" class="node-sub">$35 / day</text>
+        </g>
+        <g class="node" id="nO">
+          <circle class="node-body" cx="482" cy="405" r="24"/>
+          <rect x="474" y="397" width="16" height="16" fill="none" stroke="#66E1FF" stroke-width="1" opacity=".55"/>
+          <text x="482" y="450" class="node-label">Ops</text>
+          <text x="482" y="464" class="node-sub">$8 / day</text>
+        </g>
+
+        <!-- base settlement -->
+        <g class="base-node" id="baseNode">
+          <rect x="246" y="528" width="108" height="30" rx="2"/>
+          <text x="300" y="547" class="node-label" style="fill:#9AA4BC">Base</text>
+        </g>
+
+        <!-- packet layer (JS-driven) -->
+        <g id="packets"></g>
+      </svg>
+
+      <div class="stage-legend">
+        <p class="label">Live control plane</p>
+        <div class="legend-item ok"><span>Approved · settles</span><i></i></div>
+        <div class="legend-item no"><span>Blocked at ring</span><i></i></div>
+      </div>
+
+      <div class="stage-readout" id="readout">
+        <div class="ro-head">
+          <span class="ro-agent" id="roAgent">Research Scout</span>
+          <span class="ro-amt" id="roAmt">$4.50</span>
+        </div>
+        <div class="ro-line" data-i="0"><span id="roPurposeK">Purpose</span><b id="roPurpose">Market dataset</b></div>
+        <div class="ro-line" data-i="1"><span>Recipient</span><b id="roRecip">Approved</b></div>
+        <div class="ro-line" data-i="2"><span>Policy</span><b id="roPolicy">Within limits</b></div>
+        <div class="ro-line" data-i="3"><span>Risk score</span><b id="roRisk">12 · LOW</b></div>
+        <div class="ro-verdict" id="roVerdict"><span id="roV">Approved</span><b class="num" id="roVSub" style="font-weight:400;font-size:11px;color:var(--text-3)">Settling on Base</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= SIGNAL STRIP ======================= -->
+<section class="strip" style="padding:0">
+  <div class="wrap" style="padding-inline:0">
+    <div class="strip-tags">
+      <span>Built on Base</span>
+      <span>Policy-enforced</span>
+      <span>Agent-native</span>
+      <span>Real-time risk</span>
+      <span>Auditable</span>
+    </div>
+    <div class="strip-metrics">
+      <div class="metric" data-reveal><div class="v num" data-count="1284">0</div><div class="k">Policy checks · demo</div></div>
+      <div class="metric" data-reveal style="--d:90ms"><div class="v num" data-count="306">0</div><div class="k">Blocked actions · demo</div></div>
+      <div class="metric gold" data-reveal style="--d:180ms"><div class="v num" data-count="4229" data-prefix="$">0</div><div class="k">Protected value · demo</div></div>
+      <div class="metric" data-reveal style="--d:270ms"><div class="v num" data-count="12">0</div><div class="k">Agents monitored · demo</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= PROBLEM ======================= -->
+<section id="problem">
+  <div class="wrap">
+    <div class="prob-head">
+      <div>
+        <p class="eyebrow" data-reveal>The gap</p>
+        <h2 data-reveal style="--d:80ms">Autonomous agents should not hold <em>unrestricted wallets.</em></h2>
+      </div>
+      <p class="lead" data-reveal style="--d:160ms">
+        Agent frameworks have solved capability. None of them solved authority.
+        The moment an agent holds a private key, its worst possible decision and its
+        best possible decision cost exactly the same to execute.
+      </p>
+    </div>
+
+    <div class="prob-list">
+      <div class="prob-row" data-reveal>
+        <h3>Unbounded authority</h3>
+        <div class="prob-fig">
+          <svg width="150" height="60" viewBox="0 0 150 60">
+            <path class="pf-line" d="M0 30 h58"/>
+            <circle cx="70" cy="30" r="10" fill="none" stroke="rgba(230,234,242,.13)"/>
+            <path class="pf-hot" d="M82 30 h58"/>
+            <path class="pf-hot" d="M132 24 l8 6 -8 6"/>
+            <path class="pf-dash" d="M70 8 v10 M70 42 v10"/>
+          </svg>
+        </div>
+        <p>An agent handed raw wallet keys inherits the full authority of its owner. One malformed loop, one prompt injection, one hallucinated recipient, and the loss is the size of the treasury rather than the size of the mistake.</p>
+      </div>
+
+      <div class="prob-row" data-reveal>
+        <h3>Unpredictable spend</h3>
+        <div class="prob-fig">
+          <svg width="150" height="60" viewBox="0 0 150 60">
+            <path class="pf-line" d="M0 46 h150"/>
+            <path class="pf-amber" d="M4 44 L24 42 L44 40 L64 36 L84 34 L100 20 L112 30 L124 6 L146 12"/>
+            <circle cx="124" cy="6" r="3" fill="#E8B04B"/>
+          </svg>
+        </div>
+        <p>Autonomous systems retry failed calls, escalate to expensive models, and buy the same dataset four times. Spend curves that look flat in testing turn steep the moment an agent meets the real world.</p>
+      </div>
+
+      <div class="prob-row" data-reveal>
+        <h3>No financial governance</h3>
+        <div class="prob-fig">
+          <svg width="150" height="60" viewBox="0 0 150 60">
+            <rect x="2" y="14" width="44" height="32" fill="none" stroke="rgba(230,234,242,.13)"/>
+            <rect x="104" y="14" width="44" height="32" fill="none" stroke="rgba(230,234,242,.13)"/>
+            <path class="pf-dash" d="M50 30 h50"/>
+            <path class="pf-hot" d="M67 22 l16 16 M83 22 l-16 16"/>
+          </svg>
+        </div>
+        <p>The stack is crowded with tools for what an agent <em style="color:var(--text-1);font-style:italic">can</em> do. Almost nothing governs what it should be financially permitted to do, with limits that hold even when the model is wrong.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule"></div></div>
+
+<!-- ======================= MODEL ======================= -->
+<section id="model">
+  <div class="wrap model-grid">
+    <div>
+      <p class="eyebrow" data-reveal>The Nomylax model</p>
+      <h2 data-reveal style="--d:80ms">One treasury.<br>Many agents.<br><em>Explicit financial rules.</em></h2>
+      <div class="model-points">
+        <div class="mp" data-reveal style="--d:140ms"><span class="k">Owner</span><p>You hold the Base wallet and the capital. Nomylax never takes custody or unrestricted control of your treasury.</p></div>
+        <div class="mp" data-reveal style="--d:200ms"><span class="k">Agent</span><p>Each agent requests an economic action. It states intent: amount, recipient, purpose. Then it waits for a decision.</p></div>
+        <div class="mp" data-reveal style="--d:260ms"><span class="k">Nomylax</span><p>Deterministic policy and live risk scoring decide whether the action is financially permissible, then execute it.</p></div>
+      </div>
+    </div>
+
+    <div data-reveal style="--d:120ms">
+      <svg class="model-svg" viewBox="0 0 620 420" width="100%" role="img" aria-label="Owner treasury flows into the Nomylax core, which distributes distinct daily budgets to research, trading and operations agents">
+        <!-- treasury -->
+        <rect class="msvg-box" x="230" y="14" width="160" height="48" rx="2" stroke="rgba(212,175,55,.35)"/>
+        <text x="310" y="35" class="msvg-lbl" style="fill:#D4AF37">Owner treasury</text>
+        <text x="310" y="52" class="msvg-val" style="fill:#E6EAF2">$24,732.68</text>
+
+        <path class="msvg-path" d="M310 62 L310 140"/>
+        <path class="flow" d="M310 62 L310 140" style="animation-duration:2.6s"/>
+
+        <!-- core -->
+        <rect class="msvg-box" x="200" y="140" width="220" height="62" rx="2" stroke="rgba(41,98,255,.45)"/>
+        <text x="310" y="168" class="msvg-lbl" style="fill:#E6EAF2;letter-spacing:.24em">Nomylax core</text>
+        <text x="310" y="187" class="msvg-lbl" style="font-size:9px;fill:#67718C">Policy · Risk · Simulation</text>
+
+        <!-- fan out -->
+        <path class="msvg-path" d="M310 202 L310 240 M110 240 L510 240 M110 240 L110 286 M310 240 L310 286 M510 240 L510 286"/>
+        <path class="flow" d="M310 202 L310 240 L110 240 L110 286"/>
+        <path class="flow" d="M310 202 L310 286" style="animation-delay:.9s"/>
+        <path class="flow" d="M310 202 L310 240 L510 240 L510 286" style="animation-delay:1.8s"/>
+
+        <g>
+          <rect class="msvg-box" x="30" y="286" width="160" height="70" rx="2"/>
+          <text x="110" y="312" class="msvg-lbl">Research</text>
+          <text x="110" y="334" class="msvg-val">$20 / day</text>
+          <text x="110" y="350" class="msvg-lbl" style="font-size:8.5px;fill:#67718C">Max tx $10</text>
+        </g>
+        <g>
+          <rect class="msvg-box" x="230" y="286" width="160" height="70" rx="2"/>
+          <text x="310" y="312" class="msvg-lbl">Trading</text>
+          <text x="310" y="334" class="msvg-val">$50 / day</text>
+          <text x="310" y="350" class="msvg-lbl" style="font-size:8.5px;fill:#67718C">Max tx $25</text>
+        </g>
+        <g>
+          <rect class="msvg-box" x="430" y="286" width="160" height="70" rx="2"/>
+          <text x="510" y="312" class="msvg-lbl">Operations</text>
+          <text x="510" y="334" class="msvg-val">$8 / day</text>
+          <text x="510" y="350" class="msvg-lbl" style="font-size:8.5px;fill:#67718C">Recurring only</text>
+        </g>
+
+        <text x="310" y="398" class="msvg-lbl" style="font-size:9px;fill:#67718C;letter-spacing:.2em">Same treasury · different authority</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= HOW IT WORKS ======================= -->
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>How it works</p>
+    <h2 data-reveal style="--d:80ms;max-width:20ch" >A <em>financial constitution</em> for autonomous agents.</h2>
+
+    <div class="pipe" id="pipe">
+      <div class="pipe-track"></div>
+      <div class="pipe-fill" id="pipeFill"></div>
+      <div class="pipe-steps">
+        <div class="pstep" data-step="0"><div class="pdot">01</div><h3>Connect</h3><p>Connect a Base wallet and register the agent that will act on its behalf.</p></div>
+        <div class="pstep" data-step="1"><div class="pdot">02</div><h3>Define</h3><p>Write the agent's financial constitution: limits, recipients, reserves, thresholds.</p></div>
+        <div class="pstep" data-step="2"><div class="pdot">03</div><h3>Observe</h3><p>The agent submits an economic intent instead of signing a transaction directly.</p></div>
+        <div class="pstep" data-step="3"><div class="pdot">04</div><h3>Enforce</h3><p>Deterministic policy and the risk engine inspect the action and return a decision.</p></div>
+        <div class="pstep" data-step="4"><div class="pdot">05</div><h3>Verify</h3><p>Approved actions execute on Base and are verified and recorded after settlement.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule"></div></div>
+
+<!-- ======================= DECISION DEMO ======================= -->
+<section id="decision">
+  <div class="wrap demo">
+    <div>
+      <p class="eyebrow" data-reveal>Live decision</p>
+      <h2 data-reveal style="--d:80ms">Watch Nomylax <em>make the decision.</em></h2>
+      <p class="lead" data-reveal style="--d:140ms;margin-top:22px" >
+        Every request runs the same sequence: policy first, then risk, then simulation.
+        Policy is deterministic, so a model cannot argue with it. Switch the request
+        to see what changes.
+      </p>
+      <div class="demo-switch" data-reveal style="--d:200ms" role="tablist">
+        <button class="on" id="tabSafe" role="tab" aria-selected="true">Safe request</button>
+        <button id="tabBad" role="tab" aria-selected="false">Policy violation</button>
+      </div>
+      <div data-reveal style="--d:260ms;margin-top:22px" >
+        <button class="btn-text" id="replay" style="font-family:var(--caps);letter-spacing:.16em;text-transform:uppercase;font-size:11px">↻ Replay sequence</button>
+      </div>
+    </div>
+
+    <div class="demo-panel" data-reveal style="--d:120ms">
+      <div class="dp-head">
+        <span class="dp-title">Decision trace</span>
+        <span class="dp-live"><i></i><span id="traceId">TRACE 0x8f3a…7c2e</span></span>
+      </div>
+      <div class="dp-body">
+        <div class="dp-req">
+          <div><div class="k">Agent</div><div class="v" id="dAgent" style="font-size:12.5px">Research Scout</div></div>
+          <div><div class="k">Request</div><div class="v" id="dAmt">$4.50</div></div>
+          <div><div class="k">Purpose</div><div class="v" id="dPurpose" style="font-size:12.5px">Market dataset</div></div>
+          <div><div class="k">Recipient</div><div class="v" id="dRecip" style="font-size:12.5px">Approved</div></div>
+        </div>
+        <div class="checks" id="checks"></div>
+        <div class="dp-verdict" id="dVerdict">
+          <span class="dpv-l" id="dvLabel">Execute</span>
+          <span class="dpv-r" id="dvRight">Settlement<b>Base · USDC</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= CAPABILITIES ======================= -->
+<section id="capabilities">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Capabilities</p>
+    <h2 data-reveal style="--d:80ms">The control layer autonomous finance <em>was missing.</em></h2>
+
+    <div class="bento">
+      <div class="cell c-a" data-reveal>
+        <span class="label">Policy engine</span>
+        <h3>Rules that hold when the model is wrong</h3>
+        <p>Spending limits, approved recipients, asset restrictions and treasury reserves, evaluated deterministically on every request. No inference in the enforcement path.</p>
+        <div class="cell-fig">
+          <svg width="100%" height="72" viewBox="0 0 400 72" preserveAspectRatio="none">
+            <path d="M0 60 h400" stroke="rgba(230,234,242,.09)"/>
+            <rect x="0" y="20" width="240" height="40" fill="rgba(41,98,255,.14)"/>
+            <rect x="240" y="20" width="160" height="40" fill="rgba(255,92,108,.09)"/>
+            <path d="M240 4 v64" stroke="#D4AF37" stroke-width="1" stroke-dasharray="3 4"/>
+            <text x="248" y="16" style="font-family:var(--mono);font-size:9px;fill:#D4AF37">LIMIT $25</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="cell c-b" data-reveal style="--d:80ms">
+        <span class="label">Treasury intelligence</span>
+        <h3>Balance, allocation, runway, utilisation</h3>
+        <p>See what your autonomous workforce actually costs: burn per agent, capital allocated versus idle, and how many days of operation the treasury supports at current velocity.</p>
+        <div class="cell-fig">
+          <svg width="100%" height="72" viewBox="0 0 400 72" preserveAspectRatio="none">
+            <path d="M0 68 h400" stroke="rgba(230,234,242,.09)"/>
+            <g fill="rgba(41,98,255,.5)">
+              <rect x="6" y="40" width="26" height="28"/><rect x="46" y="30" width="26" height="38"/>
+              <rect x="86" y="34" width="26" height="34"/><rect x="126" y="22" width="26" height="46"/>
+              <rect x="166" y="26" width="26" height="42"/><rect x="206" y="14" width="26" height="54"/>
+            </g>
+            <g fill="rgba(102,225,255,.4)">
+              <rect x="246" y="24" width="26" height="44"/><rect x="286" y="18" width="26" height="50"/>
+              <rect x="326" y="10" width="26" height="58"/><rect x="366" y="16" width="26" height="52"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="cell c-c" data-reveal style="--d:40ms">
+        <span class="label">Risk engine</span>
+        <h3>A score on every action</h3>
+        <p>Contract, behaviour, operational and transaction risk combined into one number the policy layer can act on.</p>
+      </div>
+
+      <div class="cell c-d" data-reveal style="--d:120ms">
+        <span class="label">Agent network</span>
+        <h3>Many agents, one workspace</h3>
+        <p>Register, budget, pause and compare every autonomous system drawing on the same treasury.</p>
+      </div>
+
+      <div class="cell c-e" data-reveal style="--d:200ms">
+        <span class="label">Shadow mode</span>
+        <h3>Spend nothing to find out</h3>
+        <p>Run the agent against live policy with simulated settlement and read the report before funding it.</p>
+      </div>
+
+      <div class="cell c-f" data-reveal>
+        <div>
+          <span class="label">Audit layer</span>
+          <h3>Every decision leaves a record</h3>
+          <p>Requests, approvals, rejections, risk scores and executions are written to an append-only trail with the policy version that produced each outcome.</p>
+        </div>
+        <div class="audit-stream" id="auditStream"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= SHADOW MODE ======================= -->
+<section class="shadow-sec" id="shadow">
+  <div class="wrap shadow-grid">
+    <div>
+      <p class="eyebrow" data-reveal>Shadow mode</p>
+      <h2 data-reveal style="--d:80ms">Test the agent <em>before funding the agent.</em></h2>
+      <p class="lead" data-reveal style="--d:140ms;margin-top:22px" >
+        The agent runs its real logic against real policy. Nomylax evaluates every request and
+        records what would have happened: approvals, blocks, projected burn, all without moving
+        a single dollar. Most agents fail their first shadow run. Better here than on Base.
+      </p>
+      <div class="hero-meta" data-reveal style="--d:200ms;margin-top:34px" >
+        <div><span class="label">Capital at risk</span><span class="v">$0.00</span></div>
+        <div><span class="label">Policy accuracy</span><span class="v">1:1 live</span></div>
+      </div>
+    </div>
+
+    <div class="report" data-reveal style="--d:120ms" id="shadowReport">
+      <div class="report-head">
+        <span class="dp-title">24-hour shadow report</span>
+        <span class="label">Research Scout</span>
+      </div>
+      <div class="split-bar" id="splitBar"><i class="a"></i><i class="b"></i></div>
+      <div class="report-body">
+        <div class="rrow"><span class="k">Requested</span><span class="v num" data-count="47.81" data-prefix="$" data-dec="2">$0.00</span></div>
+        <div class="rrow ok"><span class="k">Would approve</span><span class="v num" data-count="31.20" data-prefix="$" data-dec="2">$0.00</span></div>
+        <div class="rrow no"><span class="k">Would block</span><span class="v num" data-count="16.61" data-prefix="$" data-dec="2">$0.00</span></div>
+        <div class="rrow warn"><span class="k">Policy violations</span><span class="v num" data-count="4">0</span></div>
+        <div class="rrow no"><span class="k">Critical events</span><span class="v num" data-count="1">0</span></div>
+        <div class="rrow"><span class="k">Estimated monthly burn</span><span class="v num" data-count="936" data-prefix="$">$0</span></div>
+      </div>
+      <div class="rec">
+        <p class="label">Recommendation · Review before activation</p>
+        <p>One critical event and four violations in 24 hours. Tighten the maximum transaction to $10 and add the two unknown recipients to the approved list before enabling protected mode.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule"></div></div>
+
+<!-- ======================= FINANCIAL INTELLIGENCE ======================= -->
+<section id="intelligence">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Financial intelligence</p>
+    <h2 data-reveal style="--d:80ms">Protection is <em>only half the system.</em></h2>
+    <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >Nomylax also shows how your autonomous workforce uses capital: what each agent costs, what it returns, and how long the treasury lasts at current velocity.</p>
+
+    <div class="charts" id="charts">
+      <div class="chart-card">
+        <div class="cc-head">
+          <div>
+            <span class="label">Treasury performance · 7D</span>
+            <div class="cc-val num">$24.73M</div>
+          </div>
+          <span class="cc-delta">+7.42%</span>
+        </div>
+        <svg viewBox="0 0 620 220" width="100%" height="220" preserveAspectRatio="none" aria-label="Treasury performance rising over seven days">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2962FF" stop-opacity=".35"/>
+              <stop offset="100%" stop-color="#2962FF" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <g stroke="rgba(230,234,242,.06)">
+            <path d="M0 40 h620"/><path d="M0 90 h620"/><path d="M0 140 h620"/><path d="M0 190 h620"/>
+          </g>
+          <path class="area" id="ttArea" fill="url(#areaGrad)"
+            d="M0 168 L52 158 L104 172 L156 140 L208 148 L260 118 L312 126 L364 96 L416 104 L468 70 L520 78 L572 46 L620 38 L620 220 L0 220 Z"/>
+          <path class="draw" id="ttLine" fill="none" stroke="#2962FF" stroke-width="1.8" stroke-linejoin="round"
+            d="M0 168 L52 158 L104 172 L156 140 L208 148 L260 118 L312 126 L364 96 L416 104 L468 70 L520 78 L572 46 L620 38"/>
+          <circle cx="620" cy="38" r="3.5" fill="#66E1FF"/>
+        </svg>
+      </div>
+
+      <div class="chart-card">
+        <div class="cc-head"><span class="label">Treasury allocation</span></div>
+        <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+          <svg width="132" height="132" viewBox="0 0 132 132" aria-label="Allocation donut chart">
+            <circle cx="66" cy="66" r="52" fill="none" stroke="rgba(230,234,242,.06)" stroke-width="14"/>
+            <circle class="donut" cx="66" cy="66" r="52" fill="none" stroke="#2962FF" stroke-width="14"
+              stroke-dasharray="0 327" data-len="190" transform="rotate(-90 66 66)"/>
+            <circle class="donut" cx="66" cy="66" r="52" fill="none" stroke="#66E1FF" stroke-width="14"
+              stroke-dasharray="0 327" data-len="66" data-offset="-190" transform="rotate(-90 66 66)"/>
+            <circle class="donut" cx="66" cy="66" r="52" fill="none" stroke="#5C6784" stroke-width="14"
+              stroke-dasharray="0 327" data-len="41" data-offset="-256" transform="rotate(-90 66 66)"/>
+            <circle class="donut" cx="66" cy="66" r="52" fill="none" stroke="#D4AF37" stroke-width="14"
+              stroke-dasharray="0 327" data-len="29" data-offset="-297" transform="rotate(-90 66 66)"/>
+          </svg>
+          <div style="flex:1;min-width:160px">
+            <div class="legend-row"><span class="d"><i style="background:#2962FF"></i>USDC</span><span class="p">58.3%</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#66E1FF"></i>ETH</span><span class="p">20.1%</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#5C6784"></i>ETH LSTs</span><span class="p">12.7%</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#D4AF37"></i>Other</span><span class="p">8.9%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cc-sub">
+        <div class="chart-card">
+          <span class="label">Daily burn · per agent</span>
+          <svg viewBox="0 0 300 96" width="100%" height="96" style="margin-top:14px">
+            <g fill="rgba(41,98,255,.55)">
+              <rect x="0" y="34" width="30" height="62"/><rect x="42" y="14" width="30" height="82"/>
+              <rect x="84" y="52" width="30" height="44"/><rect x="126" y="44" width="30" height="52"/>
+              <rect x="168" y="66" width="30" height="30"/><rect x="210" y="26" width="30" height="70"/>
+            </g>
+            <rect x="252" y="6" width="30" height="90" fill="rgba(232,176,75,.55)"/>
+            <path d="M0 96 h300" stroke="rgba(230,234,242,.09)"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;margin-top:12px">
+            <span class="num" style="font-size:16px;color:var(--silver)">$312.40</span>
+            <span class="num" style="font-size:12px;color:var(--amber)">Trading 41%</span>
+          </div>
+        </div>
+        <div class="chart-card">
+          <span class="label">Operating runway</span>
+          <div class="cc-val num">79 days</div>
+          <div style="height:2px;background:var(--slate);margin-top:18px;position:relative;overflow:hidden">
+            <i class="runway" style="position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--cobalt),var(--ice));transition:width 1.6s var(--ease);display:block"></i>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-3);margin-top:14px">At current velocity, excluding the $100 emergency reserve held outside agent authority.</p>
+        </div>
+        <div class="chart-card">
+          <span class="label">Execution outcomes</span>
+          <div style="margin-top:14px">
+            <div class="legend-row"><span class="d"><i style="background:#3FD08A"></i>Executed</span><span class="p">978</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#FF5C6C"></i>Blocked</span><span class="p">306</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#E8B04B"></i>Held for review</span><span class="p">47</span></div>
+            <div class="legend-row"><span class="d"><i style="background:#5C6784"></i>Expired</span><span class="p">11</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= RISK ENGINE ======================= -->
+<section id="risk">
+  <div class="wrap risk-grid">
+    <div>
+      <p class="eyebrow" data-reveal>Risk engine</p>
+      <h2 data-reveal style="--d:80ms">Every financial action <em>earns a score.</em></h2>
+      <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >
+        The Nomylax Risk Score, or NRS, compresses seven signals into a single value from 0 to 100.
+        Policy thresholds act on the number, so an agent's authority contracts automatically
+        as its behaviour drifts.
+      </p>
+
+      <div class="factors" data-reveal style="--d:200ms;margin-top:30px"  id="factors">
+        <div class="factor"><div class="fr"><span>Amount anomaly</span><span class="fv">18</span></div><div class="ftrack"><i data-w="18"></i></div></div>
+        <div class="factor hot"><div class="fr"><span>Unknown recipient</span><span class="fv">94</span></div><div class="ftrack"><i data-w="94"></i></div></div>
+        <div class="factor"><div class="fr"><span>Contract risk</span><span class="fv">22</span></div><div class="ftrack"><i data-w="22"></i></div></div>
+        <div class="factor warn"><div class="fr"><span>Spend velocity</span><span class="fv">67</span></div><div class="ftrack"><i data-w="67"></i></div></div>
+        <div class="factor"><div class="fr"><span>Liquidity risk</span><span class="fv">14</span></div><div class="ftrack"><i data-w="14"></i></div></div>
+        <div class="factor hot"><div class="fr"><span>Policy deviation</span><span class="fv">88</span></div><div class="ftrack"><i data-w="88"></i></div></div>
+        <div class="factor"><div class="fr"><span>Operational failures</span><span class="fv">31</span></div><div class="ftrack"><i data-w="31"></i></div></div>
+      </div>
+    </div>
+
+    <div data-reveal style="--d:120ms">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 320 320" width="100%" aria-label="Nomylax Risk Score gauge">
+          <circle class="g-track" cx="160" cy="160" r="130" stroke-dasharray="613 817" transform="rotate(135 160 160)"/>
+          <circle class="g-prog" id="gProg" cx="160" cy="160" r="130" stroke="#3FD08A"
+            stroke-dasharray="613 817" stroke-dashoffset="613" transform="rotate(135 160 160)"/>
+          <g stroke="rgba(230,234,242,.16)" stroke-width="1">
+            <path d="M160 22 v10" transform="rotate(-135 160 160)"/>
+            <path d="M160 22 v10" transform="rotate(-45 160 160)"/>
+            <path d="M160 22 v10" transform="rotate(45 160 160)"/>
+            <path d="M160 22 v10" transform="rotate(135 160 160)"/>
+          </g>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-val num" id="gVal">12</div>
+          <div class="gauge-max">/ 100 NRS</div>
+          <div class="gauge-band" id="gBand">Low</div>
+        </div>
+      </div>
+      <div class="bands">
+        <button class="band low" data-score="12" data-band="Low"><div class="r">0–29</div><div class="n">Low</div></button>
+        <button class="band mod" data-score="42" data-band="Moderate"><div class="r">30–54</div><div class="n">Moderate</div></button>
+        <button class="band high" data-score="64" data-band="High"><div class="r">55–74</div><div class="n">High</div></button>
+        <button class="band crit" data-score="91" data-band="Critical"><div class="r">75–100</div><div class="n">Critical</div></button>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-3);margin-top:16px">Select a band to preview how the gauge reads. Thresholds are configurable per agent.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= SAFE MODE ======================= -->
+<section class="safe" id="safe">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Safe mode</p>
+    <h2 data-reveal style="--d:80ms">When behaviour changes, <em>autonomy stops.</em></h2>
+    <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >
+      Three failed transactions, spend velocity above 200%, or a critical risk event moves the agent
+      down a state. Recovery is deliberate: an owner decision, never an agent one.
+    </p>
+
+    <div class="safe-states" id="safeStates">
+      <div class="sstate a on"><div class="pulse"></div><span class="label">State 01</span><h3>Autonomous</h3><p>The agent operates freely inside its constitution. Approvals settle without owner involvement.</p></div>
+      <div class="sstate w"><div class="pulse"></div><span class="label">State 02</span><h3>Watch</h3><p>Anomaly detected. Limits tighten, high-risk actions are held for review, the owner is notified.</p></div>
+      <div class="sstate s"><div class="pulse"></div><span class="label">State 03</span><h3>Safe mode</h3><p>New spending stops. Execution pauses, unknown recipients are refused, the treasury is preserved.</p></div>
+    </div>
+
+    <div class="safe-actions">
+      <div class="sact"><span>01</span>Block all new spending</div>
+      <div class="sact"><span>02</span>Pause agent execution</div>
+      <div class="sact"><span>03</span>Refuse unknown recipients</div>
+      <div class="sact"><span>04</span>Freeze automated actions</div>
+      <div class="sact"><span>05</span>Alert the owner</div>
+      <div class="sact"><span>06</span>Preserve the reserve</div>
+    </div>
+
+    <div class="safe-toggle">
+      <button class="btn btn-ghost btn-sm" data-safe="0">Autonomous</button>
+      <button class="btn btn-ghost btn-sm" data-safe="1">Watch</button>
+      <button class="btn btn-ghost btn-sm" data-safe="2">Safe mode</button>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule"></div></div>
+
+<!-- ======================= USE CASES ======================= -->
+<section id="usecases">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Use cases</p>
+    <h2 data-reveal style="--d:80ms">Built for the <em>agent economy.</em></h2>
+
+    <div class="uc">
+      <div class="uc-list" data-reveal id="ucList">
+        <button class="uc-item on" data-uc="0"><span class="n">01</span><span class="t">Research agents</span></button>
+        <button class="uc-item" data-uc="1"><span class="n">02</span><span class="t">Trading agents</span></button>
+        <button class="uc-item" data-uc="2"><span class="n">03</span><span class="t">Yield agents</span></button>
+        <button class="uc-item" data-uc="3"><span class="n">04</span><span class="t">Operations agents</span></button>
+        <button class="uc-item" data-uc="4"><span class="n">05</span><span class="t">Autonomous teams</span></button>
+      </div>
+      <div class="uc-panel" data-reveal style="--d:100ms" id="ucPanel"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= BASE-NATIVE ======================= -->
+<section id="base">
+  <div class="wrap base-grid">
+    <div>
+      <p class="eyebrow" data-reveal>Base-native</p>
+      <h2 data-reveal style="--d:80ms">Designed for agents <em>operating on Base.</em></h2>
+      <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >
+        Agent commerce needs settlement cheap enough for a $0.40 API call and fast enough
+        for a decision loop. Nomylax enforces policy in milliseconds, then settles on Base.
+      </p>
+      <div class="base-points" data-reveal style="--d:200ms">
+        <div class="bpt"><i></i>Ownership stays with your Base wallet</div>
+        <div class="bpt"><i></i>Scoped, revocable spend permissions</div>
+        <div class="bpt"><i></i>USDC-denominated agent operations</div>
+        <div class="bpt"><i></i>Low-cost settlement for micro-payments</div>
+        <div class="bpt"><i></i>Onchain execution with post-verification</div>
+        <div class="bpt"><i></i>Agent-native commerce primitives</div>
+      </div>
+    </div>
+    <div class="base-mark" data-reveal style="--d:120ms">
+      <svg width="180" height="180" viewBox="0 0 180 180" aria-label="Base network">
+        <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(41,98,255,.35)"/>
+        <circle cx="90" cy="90" r="52" fill="none" stroke="rgba(41,98,255,.6)" stroke-width="1.5"/>
+        <path d="M90 38 a52 52 0 0 1 0 104" fill="#2962FF" opacity=".9"/>
+        <rect x="52" y="86" width="76" height="8" fill="#0B1020"/>
+        <text x="90" y="168" style="font-family:var(--caps);font-size:10px;letter-spacing:.3em;fill:#67718C;text-anchor:middle">BASE</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= SECURITY ARCHITECTURE ======================= -->
+<section id="architecture">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Security architecture</p>
+    <h2 data-reveal style="--d:80ms">Security is <em>architecture,</em> not a feature.</h2>
+    <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >A request passes through eight boundaries before it becomes a settled transaction. Each one can stop it.</p>
+
+    <div class="stack" data-reveal style="--d:180ms">
+      <div class="layer gold"><span class="li">L1</span><span class="ln">Owner authority</span><span class="ld">The human holds the keys and the capital. Every permission below is delegated, scoped and revocable.</span></div>
+      <div class="layer"><span class="li">L2</span><span class="ln">Base permission boundary</span><span class="ld">Onchain spend permissions cap what the system can move, independent of application logic.</span></div>
+      <div class="layer"><span class="li">L3</span><span class="ln">Policy engine</span><span class="ld">Deterministic evaluation of limits, recipients, assets and reserves. No model in the decision path.</span></div>
+      <div class="layer"><span class="li">L4</span><span class="ln">Risk engine</span><span class="ld">Seven signals scored to NRS, compared against the agent's configured threshold.</span></div>
+      <div class="layer"><span class="li">L5</span><span class="ln">Transaction simulation</span><span class="ld">The call is simulated before signing. Unexpected state changes fail the request.</span></div>
+      <div class="layer"><span class="li">L6</span><span class="ln">Execution</span><span class="ld">Approved actions are submitted to Base under the granted permission scope.</span></div>
+      <div class="layer"><span class="li">L7</span><span class="ln">Post-transaction verification</span><span class="ld">Settled results are checked against the intent that was approved. Divergence triggers Safe Mode.</span></div>
+      <div class="layer gold"><span class="li">L8</span><span class="ln">Audit proof</span><span class="ld">Request, decision, policy version and outcome are written to an append-only record.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= TRUST ======================= -->
+<section id="trust">
+  <div class="wrap">
+    <div class="prob-head">
+      <div>
+        <p class="eyebrow" data-reveal>Trust center</p>
+        <h2 data-reveal style="--d:80ms">Everything important <em>should be verifiable.</em></h2>
+      </div>
+      <p class="lead" data-reveal style="--d:140ms">Nomylax publishes its own operating record. If the policy layer ever fails open, the number below stops being zero, and you will see it here first.</p>
+    </div>
+
+    <div class="trust-grid">
+      <div class="tcell ok" data-reveal><div class="v" style="font-size:20px">Operational</div><div class="label">System status</div></div>
+      <div class="tcell" data-reveal style="--d:60ms"><div class="v num" style="font-size:15px;color:var(--text-3)">Not established</div><div class="label">Autonomous decisions</div></div>
+      <div class="tcell" data-reveal style="--d:120ms"><div class="v num" style="font-size:15px;color:var(--text-3)">Not established</div><div class="label">Policy checks</div></div>
+      <div class="tcell ok" data-reveal style="--d:180ms"><div class="v num" style="font-size:15px;color:var(--text-3)">Not established</div><div class="label">Executed</div></div>
+      <div class="tcell no" data-reveal style="--d:240ms"><div class="v num" style="font-size:15px;color:var(--text-3)">Not established</div><div class="label">Blocked</div></div>
+      <div class="tcell gold" data-reveal style="--d:300ms"><div class="v num" style="font-size:15px;color:var(--text-3)">Not established</div><div class="label">Value protected</div></div>
+      <div class="tcell" data-reveal style="--d:360ms"><div class="v num">0</div><div class="label">Policy bypasses</div></div>
+      <div class="tcell" data-reveal style="--d:420ms"><div class="v num">$0</div><div class="label">Unauthorised loss</div></div>
+    </div>
+    <div style="margin-top:26px" data-reveal><a class="btn btn-ghost" href="/trust">Open trust center</a></div>
+  </div>
+</section>
+
+<!-- ======================= ONBOARDING PATH ======================= -->
+<section id="onboarding">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Getting started</p>
+    <h2 data-reveal style="--d:80ms">From wallet connection to <em>protected autonomy.</em></h2>
+    <p class="lead" data-reveal style="--d:140ms;margin-top:20px" >Connecting a wallet is step one of six. It establishes ownership. It does not hand anything to an agent.</p>
+
+    <div class="path" id="path">
+      <div class="pnode"><div class="n">01</div><div class="t">Connect wallet</div><div class="d">Your Base wallet establishes ownership of the treasury.</div><div class="bar"><i></i></div></div>
+      <div class="pnode"><div class="n">02</div><div class="t">Create workspace</div><div class="d">Name the treasury and pick a default risk profile.</div><div class="bar"><i></i></div></div>
+      <div class="pnode"><div class="n">03</div><div class="t">Connect agent</div><div class="d">Bring your own agent, or start with a demo agent.</div><div class="bar"><i></i></div></div>
+      <div class="pnode"><div class="n">04</div><div class="t">Write constitution</div><div class="d">Set limits, recipients, reserves and thresholds.</div><div class="bar"><i></i></div></div>
+      <div class="pnode"><div class="n">05</div><div class="t">Run shadow mode</div><div class="d">Watch what the agent would do with no money at risk.</div><div class="bar"><i></i></div></div>
+      <div class="pnode"><div class="n">06</div><div class="t">Enable protected mode</div><div class="d">Autonomy begins, inside the boundary you defined.</div><div class="bar"><i></i></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FINAL CTA ======================= -->
+<section class="final">
+  <div class="wrap">
+    <svg class="seal" width="96" height="96" viewBox="0 0 120 120" data-reveal aria-hidden="true">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(212,175,55,.3)"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(212,175,55,.5)"/>
+      <path d="M60 16 L60 36" stroke="#2962FF" stroke-width="4"/>
+      <path d="M36 42 h48 v18 a24 30 0 0 1 -24 30 a24 30 0 0 1 -24 -30 z" fill="none" stroke="#D4AF37" stroke-width="1.6"/>
+      <path d="M60 52 l9 7 -9 7 -9 -7 z" fill="#D4AF37"/>
+      <path d="M50 74 v10 M70 74 v10" stroke="#D4AF37" stroke-width="1.2" opacity=".7"/>
+    </svg>
+    <h2 data-reveal style="--d:60ms">Build autonomous finance <em>with control.</em></h2>
+    <p class="lead" data-reveal style="--d:120ms">Give AI agents the ability to operate without surrendering unlimited authority over capital.</p>
+    <div class="final-actions" data-reveal style="--d:180ms">
+      <a class="btn btn-primary" href="/app/onboarding">Launch Nomylax</a>
+      <a class="btn btn-ghost" href="#decision">Watch demo</a>
+      <a class="btn-text" href="https://github.com">View GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div style="max-width:280px">
+        <div class="brand" style="margin-bottom:14px">
+          <svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#D4AF37" stroke-width="1"/>
+            <path d="M20 6 L20 13" stroke="#2962FF" stroke-width="2.4"/>
+            <path d="M12 15 h16 v6 a8 10 0 0 1 -8 10 a8 10 0 0 1 -8 -10 z" fill="none" stroke="#D4AF37" stroke-width="1.3"/>
+          </svg>
+          <span class="brand-name" style="font-size:12px">Nomylax</span>
+        </div>
+        <p style="font-size:13px;color:var(--text-3)">The financial control plane for autonomous AI agents. Base-native.</p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col"><span class="label">Product</span><a href="/app/onboarding">Launch app</a><a href="#capabilities">Capabilities</a><a href="#shadow">Shadow mode</a><a href="#risk">Risk engine</a></div>
+        <div class="foot-col"><span class="label">System</span><a href="#architecture">Architecture</a><a href="/trust">Trust center</a><a href="#base">Base integration</a><a href="/docs">Documentation</a></div>
+        <div class="foot-col"><span class="label">Project</span><a href="https://github.com">GitHub</a><a href="#onboarding">Getting started</a><a href="#model">The model</a></div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>Nomylax · Built for the Orion Agents Builder Hackathon</span>
+      <span class="num">Figures on this page are demo data. Live figures appear in the Trust Center.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- reveal ---------------- */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('[data-reveal]').forEach(function(el){ io.observe(el); });
+
+/* ---------------- count up ---------------- */
+function fmt(v,dec,prefix){
+  var s = dec ? v.toFixed(dec) : Math.round(v).toString();
+  var parts = s.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (prefix||'') + parts.join('.');
+}
+var cio = new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return;
+    var el = e.target, target = parseFloat(el.dataset.count),
+        dec = parseInt(el.dataset.dec||'0',10), pre = el.dataset.prefix||'';
+    cio.unobserve(el);
+    if(RM){ el.textContent = fmt(target,dec,pre); return; }
+    var t0 = null, dur = 1500;
+    function tick(t){
+      if(!t0) t0 = t;
+      var p = Math.min((t-t0)/dur,1), eased = 1-Math.pow(1-p,3);
+      el.textContent = fmt(target*eased,dec,pre);
+      if(p<1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+},{threshold:.4});
+document.querySelectorAll('[data-count]').forEach(function(el){ cio.observe(el); });
+
+/* ---------------- HERO CONTROL PLANE ---------------- */
+var SVGNS='http://www.w3.org/2000/svg';
+var packets = document.getElementById('packets');
+var ringFlash = document.getElementById('ringFlash');
+var EVENTS = [
+  {node:'nR', path:'pR', agent:'Research Scout', amt:'$4.50', purpose:'Market dataset', recip:'Approved', policy:'Within limits', risk:'12 · LOW', ok:true, sub:'Settling on Base'},
+  {node:'nT', path:'pT', agent:'Trading Agent', amt:'$80.00', purpose:'Position entry', recip:'Unknown', policy:'Max tx $25 exceeded', risk:'91 · CRITICAL', ok:false, sub:'$80.00 protected'},
+  {node:'nO', path:'pO', agent:'Ops Agent', amt:'$12.00', purpose:'RPC subscription', recip:'Approved', policy:'Within limits', risk:'19 · LOW', ok:true, sub:'Settling on Base'},
+  {node:'nY', path:'pY', agent:'Yield Agent', amt:'$140.00', purpose:'LP deposit', recip:'Unverified pool', policy:'Reserve floor breached', risk:'77 · CRITICAL', ok:false, sub:'$140.00 protected'}
+];
+var roLines = document.querySelectorAll('.ro-line');
+var el = {
+  agent:document.getElementById('roAgent'), amt:document.getElementById('roAmt'),
+  purpose:document.getElementById('roPurpose'), recip:document.getElementById('roRecip'),
+  policy:document.getElementById('roPolicy'), risk:document.getElementById('roRisk'),
+  verdict:document.getElementById('roVerdict'), v:document.getElementById('roV'), vsub:document.getElementById('roVSub')
+};
+
+function makePacket(color){
+  var g = document.createElementNS(SVGNS,'g');
+  var c = document.createElementNS(SVGNS,'circle');
+  c.setAttribute('r','4.5'); c.setAttribute('fill',color); c.setAttribute('class','packet-dot');
+  var t = document.createElementNS(SVGNS,'circle');
+  t.setAttribute('r','11'); t.setAttribute('fill','none');
+  t.setAttribute('stroke',color); t.setAttribute('stroke-opacity','.35');
+  g.appendChild(t); g.appendChild(c);
+  packets.appendChild(g);
+  return g;
+}
+function travel(pathId, g, from, to, dur, done){
+  var p = document.getElementById(pathId), L = p.getTotalLength(), t0=null;
+  function step(t){
+    if(!t0) t0=t;
+    var k = Math.min((t-t0)/dur,1), e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    var len = from + (to-from)*e, pt = p.getPointAtLength(len);
+    g.setAttribute('transform','translate('+pt.x+','+pt.y+')');
+    if(k<1) requestAnimationFrame(step); else done && done();
+  }
+  requestAnimationFrame(step);
+}
+function flashRing(color){
+  ringFlash.setAttribute('stroke',color);
+  ringFlash.style.transition='none'; ringFlash.style.opacity='.9';
+  ringFlash.setAttribute('r','118');
+  requestAnimationFrame(function(){
+    ringFlash.style.transition='opacity 1s ease-out';
+    ringFlash.style.opacity='0';
+  });
+}
+function setLines(n){ roLines.forEach(function(l,i){ l.classList.toggle('on', i<n); }); }
+
+var evIdx = 0;
+function runEvent(){
+  var e = EVENTS[evIdx % EVENTS.length]; evIdx++;
+  var node = document.getElementById(e.node);
+  document.querySelectorAll('.node').forEach(function(n){ n.classList.remove('active'); });
+  node.classList.add('active');
+
+  el.agent.textContent = e.agent; el.amt.textContent = e.amt;
+  el.purpose.textContent = e.purpose; el.recip.textContent = e.recip;
+  el.policy.textContent = e.policy; el.risk.textContent = e.risk;
+  el.recip.style.color = (e.recip==='Approved') ? '' : 'var(--coral)';
+  el.policy.style.color = e.ok ? '' : 'var(--coral)';
+  el.risk.style.color = e.ok ? '' : 'var(--coral)';
+  el.verdict.classList.remove('on'); setLines(0);
+
+  if(RM){
+    setLines(4); el.verdict.classList.add('on');
+    el.v.textContent = e.ok?'Approved':'Blocked';
+    el.v.className = e.ok?'v-ok':'v-no'; el.vsub.textContent = e.sub;
+    setTimeout(runEvent, 4200); return;
+  }
+
+  var color = e.ok ? '#66E1FF' : '#FF5C6C';
+  var g = makePacket(color);
+  var p = document.getElementById(e.path), L = p.getTotalLength(), ringLen = L - 118;
+
+  setTimeout(function(){ setLines(1); }, 250);
+  setTimeout(function(){ setLines(2); }, 620);
+
+  travel(e.path, g, 0, ringLen, 1500, function(){
+    setLines(3);
+    setTimeout(function(){ setLines(4); }, 380);
+    if(e.ok){
+      flashRing('#2962FF');
+      setTimeout(function(){
+        travel(e.path, g, ringLen, L, 700, function(){
+          g.remove();
+          var g2 = makePacket('#3FD08A');
+          travel('pBase', g2, 118, document.getElementById('pBase').getTotalLength(), 900, function(){
+            g2.style.transition='opacity .5s'; g2.style.opacity='0';
+            setTimeout(function(){ g2.remove(); }, 520);
+          });
+          el.verdict.classList.add('on');
+          el.v.textContent='Approved'; el.v.className='v-ok'; el.vsub.textContent=e.sub;
+        });
+      }, 520);
+      setTimeout(runEvent, 4600);
+    }else{
+      flashRing('#FF5C6C');
+      g.style.transition='opacity .6s cubic-bezier(.22,.61,.36,1), transform .6s';
+      setTimeout(function(){
+        el.verdict.classList.add('on');
+        el.v.textContent='Blocked'; el.v.className='v-no'; el.vsub.textContent=e.sub;
+        g.style.opacity='0';
+        setTimeout(function(){ g.remove(); }, 640);
+      }, 560);
+      setTimeout(runEvent, 4400);
+    }
+  });
+}
+var heroSeen=false;
+var hio = new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting && !heroSeen){ heroSeen=true; setTimeout(runEvent,900); } });
+},{threshold:.2});
+hio.observe(document.querySelector('.stage'));
+
+/* ---------------- PIPELINE ---------------- */
+var pipe = document.getElementById('pipe');
+var pio = new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; pio.unobserve(e.target);
+    var steps = pipe.querySelectorAll('.pstep');
+    document.getElementById('pipeFill').style.width='100%';
+    steps.forEach(function(s,i){ setTimeout(function(){ s.classList.add('on'); }, RM?0:i*320); });
+  });
+},{threshold:.4});
+pio.observe(pipe);
+
+/* ---------------- DECISION DEMO ---------------- */
+var SCENES = {
+  safe:{
+    agent:'Research Scout', amt:'$4.50', purpose:'Market dataset', recip:'Approved',
+    trace:'TRACE 0x8f3a…7c2e',
+    checks:[
+      ['Allowed asset','USDC',true],['Single transaction limit','$4.50 / $10.00',true],
+      ['Daily budget remaining','$20.50 / $25.00',true],['Recipient allowlist','Match found',true],
+      ['Emergency reserve','Untouched',true],['Risk score','12 · LOW',true],['Simulation','No unexpected state change',true]
+    ],
+    verdict:'Execute', vclass:'pass', rlabel:'Settlement', rval:'Base · USDC'
+  },
+  bad:{
+    agent:'Trading Agent', amt:'$80.00', purpose:'Position entry', recip:'Unknown',
+    trace:'TRACE 0x2b7d…9a11',
+    checks:[
+      ['Allowed asset','USDC',true],['Single transaction limit','$80.00 / $25.00',false],
+      ['Daily budget remaining','$18.00 / $50.00',false],['Recipient allowlist','No match',false],
+      ['Emergency reserve','Would breach $100',false],['Risk score','91 · CRITICAL',false],['Simulation','Not reached',false]
+    ],
+    verdict:'Blocked', vclass:'fail', rlabel:'Funds protected', rval:'$80.00'
+  }
+};
+var checksEl=document.getElementById('checks'), verdictEl=document.getElementById('dVerdict');
+var timers=[];
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+function playScene(key){
+  clearTimers();
+  var s=SCENES[key];
+  document.getElementById('dAgent').textContent=s.agent;
+  document.getElementById('dAmt').textContent=s.amt;
+  document.getElementById('dPurpose').textContent=s.purpose;
+  document.getElementById('dRecip').textContent=s.recip;
+  document.getElementById('dRecip').style.color = s.recip==='Approved' ? '' : 'var(--coral)';
+  document.getElementById('traceId').textContent=s.trace;
+  verdictEl.classList.remove('on','pass','fail');
+  checksEl.innerHTML='';
+  s.checks.forEach(function(c){
+    var d=document.createElement('div');
+    d.className='check '+(c[2]?'pass':'fail');
+    d.innerHTML='<span class="ci"></span><span class="cn">'+c[0]+'</span><span class="cv">'+c[1]+'</span>';
+    checksEl.appendChild(d);
+  });
+  var nodes=checksEl.querySelectorAll('.check');
+  nodes.forEach(function(n,i){
+    timers.push(setTimeout(function(){ n.classList.add('on'); }, RM?0:280+i*260));
+  });
+  timers.push(setTimeout(function(){
+    verdictEl.classList.add('on', s.vclass);
+    document.getElementById('dvLabel').textContent=s.verdict;
+    document.getElementById('dvRight').innerHTML=s.rlabel+'<b>'+s.rval+'</b>';
+  }, RM?0:280+nodes.length*260+200));
+}
+var demoKey='safe', demoStarted=false;
+document.getElementById('tabSafe').addEventListener('click',function(){
+  demoKey='safe'; this.classList.add('on'); this.setAttribute('aria-selected','true');
+  var o=document.getElementById('tabBad'); o.classList.remove('on'); o.setAttribute('aria-selected','false');
+  playScene('safe');
+});
+document.getElementById('tabBad').addEventListener('click',function(){
+  demoKey='bad'; this.classList.add('on'); this.setAttribute('aria-selected','true');
+  var o=document.getElementById('tabSafe'); o.classList.remove('on'); o.setAttribute('aria-selected','false');
+  playScene('bad');
+});
+document.getElementById('replay').addEventListener('click',function(){ playScene(demoKey); });
+var dio=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting && !demoStarted){ demoStarted=true; playScene('safe'); } });
+},{threshold:.3});
+dio.observe(document.querySelector('.demo-panel'));
+
+/* ---------------- AUDIT STREAM ---------------- */
+var stream=document.getElementById('auditStream');
+var AUDIT=[
+  ['14:22:07','0x8f3a…7c2e','APPROVED','ok'],
+  ['14:21:52','0x2b7d…9a11','BLOCKED','no'],
+  ['14:21:31','0x7e21…ac90','APPROVED','ok'],
+  ['14:20:58','0x9c12…1d44','APPROVED','ok'],
+  ['14:20:12','0x4a6b…8f21','BLOCKED','no'],
+  ['14:19:44','0xd1c0…b8e2','APPROVED','ok']
+];
+var ai=0;
+function pushAudit(){
+  var a=AUDIT[ai%AUDIT.length]; ai++;
+  var d=document.createElement('div');
+  d.className='audit-line';
+  d.innerHTML='<span class="t">'+a[0]+'</span><span class="h">'+a[1]+'</span><span class="s '+a[3]+'">'+a[2]+'</span>';
+  stream.insertBefore(d, stream.firstChild);
+  while(stream.children.length>6) stream.removeChild(stream.lastChild);
+}
+for(var i=0;i<6;i++) pushAudit();
+if(!RM) setInterval(pushAudit, 2600);
+
+/* ---------------- SHADOW SPLIT BAR ---------------- */
+var sbio=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; sbio.unobserve(e.target);
+    var bar=document.getElementById('splitBar');
+    setTimeout(function(){
+      bar.querySelector('.a').style.width='65%';
+      bar.querySelector('.b').style.width='35%';
+    },200);
+  });
+},{threshold:.3});
+sbio.observe(document.getElementById('shadowReport'));
+
+/* ---------------- CHARTS ---------------- */
+var chio=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; chio.unobserve(e.target);
+    document.getElementById('ttLine').classList.add('in');
+    document.getElementById('ttArea').classList.add('in');
+    document.querySelectorAll('.donut').forEach(function(c,i){
+      var len=parseFloat(c.dataset.len), off=parseFloat(c.dataset.offset||'0');
+      setTimeout(function(){
+        c.style.transition='stroke-dasharray 1.1s cubic-bezier(.22,.61,.36,1)';
+        c.setAttribute('stroke-dasharray', len+' 327');
+        if(off) c.setAttribute('stroke-dashoffset', off);
+      }, 160*i);
+    });
+    var rw=document.querySelector('.runway'); if(rw) rw.style.width='66%';
+  });
+},{threshold:.25});
+chio.observe(document.getElementById('charts'));
+
+/* ---------------- RISK GAUGE ---------------- */
+var ARC=613;
+var gProg=document.getElementById('gProg'), gVal=document.getElementById('gVal'), gBand=document.getElementById('gBand');
+function bandColor(s){ return s<30?'#3FD08A': s<55?'#66E1FF': s<75?'#E8B04B':'#FF5C6C'; }
+function setScore(score, label){
+  var c=bandColor(score);
+  gProg.setAttribute('stroke',c);
+  gProg.setAttribute('stroke-dashoffset', ARC - ARC*(score/100));
+  gBand.textContent=label; gBand.style.color=c;
+  if(RM){ gVal.textContent=score; return; }
+  var start=parseInt(gVal.textContent,10)||0, t0=null;
+  function tick(t){
+    if(!t0)t0=t;
+    var p=Math.min((t-t0)/900,1), e=1-Math.pow(1-p,3);
+    gVal.textContent=Math.round(start+(score-start)*e);
+    if(p<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+gProg.setAttribute('stroke-dashoffset', ARC);
+var rio=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; rio.unobserve(e.target);
+    setScore(12,'Low');
+    document.querySelectorAll('.ftrack i').forEach(function(b,i){
+      setTimeout(function(){ b.style.width=b.dataset.w+'%'; }, 120*i);
+    });
+  });
+},{threshold:.3});
+rio.observe(document.getElementById('risk'));
+document.querySelectorAll('.band').forEach(function(b){
+  b.addEventListener('click',function(){ setScore(parseInt(b.dataset.score,10), b.dataset.band); });
+});
+
+/* ---------------- SAFE MODE ---------------- */
+var safeSec=document.getElementById('safe');
+var states=document.querySelectorAll('.sstate');
+var stateNames=['','state-watch','state-safe'];
+function setSafe(i){
+  states.forEach(function(s,k){ s.classList.toggle('on', k===i); });
+  safeSec.classList.remove('state-watch','state-safe');
+  if(stateNames[i]) safeSec.classList.add(stateNames[i]);
+  document.querySelectorAll('[data-safe]').forEach(function(b){
+    b.style.borderColor = (parseInt(b.dataset.safe,10)===i) ? 'var(--line-gold)' : '';
+  });
+}
+document.querySelectorAll('[data-safe]').forEach(function(b){
+  b.addEventListener('click',function(){ safeAuto=false; setSafe(parseInt(b.dataset.safe,10)); });
+});
+var safeAuto=true, safeIdx=0, safeTimer=null;
+var sio=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(e.isIntersecting && !safeTimer && !RM){
+      safeTimer=setInterval(function(){
+        if(!safeAuto) return;
+        safeIdx=(safeIdx+1)%3; setSafe(safeIdx);
+      }, 2800);
+    }
+  });
+},{threshold:.35});
+sio.observe(safeSec);
+
+/* ---------------- USE CASES ---------------- */
+var UC=[
+  {t:'Research agents',d:'Buy datasets, API credits, compute and information without an open wallet. Micro-payments are the whole workload, so the limits that matter are per-transaction and per-day, not per-position.',
+   rows:[['Daily limit','$25.00'],['Maximum transaction','$10.00'],['Allowed assets','USDC'],['Unknown recipient','Block'],['Typical action','Dataset purchase · $4.50']]},
+  {t:'Trading agents',d:'Operate inside hard position and spend boundaries. The agent chooses the trade; the constitution decides the maximum it is allowed to be wrong by.',
+   rows:[['Daily limit','$50.00'],['Maximum transaction','$25.00'],['Allowed venues','Approved routers only'],['3 failed transactions','Safe mode'],['Typical action','Swap · $18.00']]},
+  {t:'Yield agents',d:'Interact with approved DeFi venues under treasury policy. Reserve floors are enforced before deposit, so an agent can never allocate the capital you told it to keep.',
+   rows:[['Daily limit','$35.00'],['Emergency reserve','$100.00 · locked'],['Allowed venues','Allowlisted pools'],['Contract risk threshold','55 NRS'],['Typical action','LP deposit · $30.00']]},
+  {t:'Operations agents',d:'Pay recurring infrastructure and operational costs on schedule. Recipients are fixed, amounts are predictable, and anything outside the pattern is held for review.',
+   rows:[['Daily limit','$8.00'],['Maximum transaction','$8.00'],['Recipients','Fixed list · 6'],['Off-pattern spend','Require review'],['Typical action','RPC subscription · $12.00 / mo']]},
+  {t:'Autonomous teams',d:'Several agents, one treasury, separate authority. Each constitution is independent, but reserve floors and Safe Mode apply across the whole workspace.',
+   rows:[['Treasury','$24,732.68'],['Active agents','12'],['Combined daily ceiling','$118.00'],['Shared reserve','$100.00 · locked'],['Workspace state','Autonomous']]}
+];
+var ucPanel=document.getElementById('ucPanel');
+function renderUC(i){
+  var u=UC[i];
+  var rows=u.rows.map(function(r){ return '<div class="prow"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join('');
+  ucPanel.innerHTML='<div class="fade-swap"><span class="label">Scenario 0'+(i+1)+'</span><h3 style="margin-top:12px">'+u.t+'</h3><p class="desc">'+u.d+'</p><div class="uc-policy">'+rows+'</div></div>';
+}
+renderUC(0);
+document.querySelectorAll('.uc-item').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.uc-item').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on'); renderUC(parseInt(b.dataset.uc,10));
+  });
+});
+
+/* ---------------- ONBOARDING PATH ---------------- */
+var oio=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; oio.unobserve(e.target);
+    document.querySelectorAll('#path .bar i').forEach(function(b,i){
+      setTimeout(function(){ b.style.width='100%'; }, RM?0:i*220);
+    });
+  });
+},{threshold:.3});
+oio.observe(document.getElementById('path'));
+
+})();
+</script>
+</body>
+</html>
