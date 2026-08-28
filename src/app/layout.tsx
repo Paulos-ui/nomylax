@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nomylax — Financial control plane for autonomous AI agents',
+  title: 'Nomylax: Financial control plane for autonomous AI agents',
   description:
     'Give AI agents money. Not unlimited power. Nomylax enforces programmable budgets, risk controls and treasury limits for autonomous agents on Base.',
 };
