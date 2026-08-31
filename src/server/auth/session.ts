@@ -21,7 +21,13 @@ export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export class SessionError extends Error {}
 
-function secret(): Buffer {
+/**
+ * The HMAC key for both session tags and nonce tags. Exported so the challenge
+ * code can authenticate nonces under the same secret, with its own domain
+ * separation label. Throws rather than falling back to anything derivable, so a
+ * misconfigured deployment fails loudly instead of issuing forgeable sessions.
+ */
+export function authSecret(): Buffer {
   const s = process.env.SESSION_SECRET;
   if (!s || s.length < 32) {
     throw new SessionError('SESSION_SECRET must be set to at least 32 characters');
@@ -29,11 +35,12 @@ function secret(): Buffer {
   return Buffer.from(s, 'utf8');
 }
 
+
 const b64u = (b: Buffer) => b.toString('base64url');
 
 export function signSession(data: SessionData): string {
   const body = b64u(Buffer.from(JSON.stringify(data), 'utf8'));
-  const tag = b64u(createHmac('sha256', secret()).update(body).digest());
+  const tag = b64u(createHmac('sha256', authSecret()).update(body).digest());
   return `${body}.${tag}`;
 }
 
@@ -44,7 +51,7 @@ export function verifySession(token: string | undefined | null, now = Date.now()
 
   let expected: string;
   try {
-    expected = b64u(createHmac('sha256', secret()).update(body).digest());
+    expected = b64u(createHmac('sha256', authSecret()).update(body).digest());
   } catch {
     return null;
   }

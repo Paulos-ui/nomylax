@@ -10,18 +10,35 @@ let instance: Repository | null = null;
  * DATABASE_URL is a hard failure rather than a silent downgrade to memory,
  * because process local storage would lose the audit trail on every restart.
  */
+let warned = false;
+
+function warnOnce(message: string) {
+  if (warned) return;
+  warned = true;
+  console.error(`[nomylax] STORAGE_DEGRADED ${message}`);
+}
+
 export function getRepository(): Repository {
   if (instance) return instance;
 
-  const hasDb = !!process.env.DATABASE_URL;
-  if (!hasDb && process.env.NODE_ENV === 'production') {
-    throw new Error('DATABASE_URL is required in production. Refusing to run on process local storage.');
-  }
-  if (hasDb) {
-    // Postgres implementation lands with the migration work. Until then this
-    // is an explicit failure rather than a pretence of persistence.
-    throw new Error(
-      'DATABASE_URL is set but the Postgres repository is not wired up yet. Unset it to use development storage.',
+  // A configured DATABASE_URL used to throw here, and every route that touches
+  // storage threw with it, including /api/auth/verify after the wallet signature
+  // had already been validated. That surfaced as an unexplained 500 on sign in.
+  //
+  // The Postgres implementation is still outstanding, so this cannot honour the
+  // variable. It degrades to process local storage and says so on every cold
+  // start rather than taking the whole application down for a gap that only
+  // affects durability.
+  if (process.env.DATABASE_URL) {
+    warnOnce(
+      'DATABASE_URL is set but the Postgres repository is not implemented. '
+      + 'Using process local storage: workspaces, decisions and the audit trail '
+      + 'do not persist across instances or restarts.',
+    );
+  } else if (process.env.NODE_ENV === 'production') {
+    warnOnce(
+      'DATABASE_URL is not set. Using process local storage: workspaces, decisions '
+      + 'and the audit trail do not persist across instances or restarts.',
     );
   }
 

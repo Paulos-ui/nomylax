@@ -12,9 +12,31 @@ export function fail(status: number, error: string, extra: Record<string, unknow
   return NextResponse.json({ error, ...extra }, { status });
 }
 
+/**
+ * Unexpected failure. The caller gets a generic message; the operator gets the
+ * detail in the platform log.
+ *
+ * Production logging was previously suppressed, which is why a 500 in this
+ * deployment left nothing behind in Vercel to diagnose. The message and stack
+ * are internal, never the response body.
+ */
 export function serverError(e: unknown, publicMessage = 'The request could not be completed') {
-  if (process.env.NODE_ENV !== 'production') console.error('[nomylax]', e);
+  const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  console.error('[nomylax] unhandled', detail);
+  if (e instanceof Error && e.stack) console.error(e.stack);
   return fail(500, publicMessage);
+}
+
+/**
+ * The deployment is misconfigured, not the request. 503 rather than 500 so this
+ * is distinguishable in logs and monitoring; the specific variable at fault is
+ * logged but never returned, since that would describe the server's internals to
+ * an anonymous caller.
+ */
+export function configError(e: unknown, publicMessage: string) {
+  const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  console.error('[nomylax] misconfiguration', detail);
+  return fail(503, publicMessage);
 }
 
 export function requireSession(req: Request): SessionData | null {
