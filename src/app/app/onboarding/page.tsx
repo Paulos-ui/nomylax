@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/lib/store';
 import { useWallet } from '@/hooks/useWallet';
@@ -17,6 +17,12 @@ export default function Onboarding() {
   const router = useRouter();
   const { createWorkspace, addAgent, treasury, completeOnboarding, setMode } = useWorkspace();
   const wallet = useWallet();
+
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const [step, setStep] = useState(0);
   const [wsName, setWsName] = useState('Guardian Treasury');
@@ -90,6 +96,14 @@ export default function Onboarding() {
     completeOnboarding();
     router.push('/app/overview');
   };
+
+  if (!isMounted) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--text-3)' }}>Loading workspace...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
