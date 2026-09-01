@@ -19,8 +19,25 @@ interface Eip1193 {
 }
 
 declare global {
-  interface Window { ethereum?: Eip1193 }
+  interface Window {
+    ethereum?: Eip1193;
+    okxwallet?: Eip1193;
+  }
 }
+
+// Helper to reliably grab the active wallet provider
+const getProvider = (): Eip1193 | undefined => {
+  if (typeof window === 'undefined') return undefined;
+
+  // 1. Standard approach: Always try window.ethereum first.
+  // If the user has multiple wallets, the browser extensions handle the selection prompt.
+  if (window.ethereum) return window.ethereum;
+
+  // 2. Fallback: Only use OKX directly if window.ethereum is missing/unassigned
+  if (window.okxwallet) return window.okxwallet;
+
+  return undefined;
+};
 
 export function useWallet() {
   const net = clientNetwork();
@@ -29,45 +46,59 @@ export function useWallet() {
   const [status, setStatus] = useState<Status>('disconnected');
   const [error, setError] = useState<string | null>(null);
 
-  const hasProvider = typeof window !== 'undefined' && !!window.ethereum;
+  const hasProvider = !!getProvider();
 
   const sync = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.ethereum) return;
-    const accounts: string[] = await window.ethereum.request({ method: 'eth_accounts' });
-    const hex: string = await window.ethereum.request({ method: 'eth_chainId' });
-    const id = parseInt(hex, 16);
-    setChainId(id);
-    if (accounts?.length) {
-      setAddress(accounts[0]);
-      setStatus((s) => (s === 'authenticated' ? s : id === net.chainId ? 'connected' : 'wrong-network'));
-    } else {
-      setAddress(null);
-      setStatus('disconnected');
+    const provider = getProvider();
+    if (!provider) return;
+
+    try {
+      const accounts: string[] = await provider.request({ method: 'eth_accounts' });
+      const hex: string = await provider.request({ method: 'eth_chainId' });
+      const id = parseInt(hex, 16);
+
+      setChainId(id);
+      if (accounts?.length) {
+        setAddress(accounts[0]);
+        setStatus((s) => (s === 'authenticated' ? s : id === net.chainId ? 'connected' : 'wrong-network'));
+      } else {
+        setAddress(null);
+        setStatus('disconnected');
+      }
+    } catch {
+      // Ignore provider read errors during unmounted or locked states
     }
   }, [net.chainId]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.ethereum) return;
+    const provider = getProvider();
+    if (!provider) return;
+
     sync();
     const handler = () => sync();
-    window.ethereum.on?.('accountsChanged', handler);
-    window.ethereum.on?.('chainChanged', handler);
+
+    provider.on?.('accountsChanged', handler);
+    provider.on?.('chainChanged', handler);
+
     return () => {
-      window.ethereum?.removeListener?.('accountsChanged', handler);
-      window.ethereum?.removeListener?.('chainChanged', handler);
+      provider.removeListener?.('accountsChanged', handler);
+      provider.removeListener?.('chainChanged', handler);
     };
   }, [sync]);
 
   const connect = useCallback(async () => {
     setError(null);
-    if (!window.ethereum) {
+    const provider = getProvider();
+
+    if (!provider) {
       setStatus('error');
       setError('No wallet was found in this browser. Install a Base compatible wallet, then reload.');
       return;
     }
+
     try {
       setStatus('connecting');
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      await provider.request({ method: 'eth_requestAccounts' });
       await sync();
     } catch (e: any) {
       setStatus('error');
@@ -77,23 +108,29 @@ export function useWallet() {
 
   /** Prove ownership by signing a server challenge. */
   const signIn = useCallback(async () => {
-    if (!window.ethereum || !address) return false;
+    const provider = getProvider();
+    if (!provider || !address) return false;
+
     setError(null);
     setStatus('authenticating');
+
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
       if (!nonceRes.ok) throw new Error((await nonceRes.json()).error ?? 'Challenge could not be issued');
       const { nonce, message } = await nonceRes.json();
 
-      const signature: string = await window.ethereum.request({
-        method: 'personal_sign', params: [message, address],
+      const signature: string = await provider.request({
+        method: 'personal_sign',
+        params: [message, address],
       });
 
       const verify = await fetch('/api/auth/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, message, signature, nonce }),
       });
       if (!verify.ok) throw new Error((await verify.json()).error ?? 'Signature could not be verified');
@@ -113,20 +150,25 @@ export function useWallet() {
   }, [address]);
 
   const switchNetwork = useCallback(async () => {
-    if (!window.ethereum) return;
+    const provider = getProvider();
+    if (!provider) return;
+
     const hex = '0x' + net.chainId.toString(16);
     try {
-      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hex }] });
+      await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hex }] });
     } catch (e: any) {
       if (e?.code === 4902) {
-        await window.ethereum.request({
+        await provider.request({
           method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: hex, chainName: net.label,
-            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-            rpcUrls: [process.env.NEXT_PUBLIC_RPC_URL ?? 'https://sepolia.base.org'],
-            blockExplorerUrls: [net.explorer],
-          }],
+          params: [
+            {
+              chainId: hex,
+              chainName: net.label,
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: [process.env.NEXT_PUBLIC_RPC_URL ?? 'https://sepolia.base.org'],
+              blockExplorerUrls: [net.explorer],
+            },
+          ],
         });
       } else {
         setError('The network could not be switched. Change it in your wallet, then reload.');
@@ -136,8 +178,15 @@ export function useWallet() {
   }, [net, sync]);
 
   return {
-    address, chainId, status, error, hasProvider,
-    connect, signIn, signOut, switchNetwork,
+    address,
+    chainId,
+    status,
+    error,
+    hasProvider,
+    connect,
+    signIn,
+    signOut,
+    switchNetwork,
     network: net,
     chainName: net.label,
     expectedChainId: net.chainId,
