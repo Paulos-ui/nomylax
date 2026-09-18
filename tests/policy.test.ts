@@ -131,6 +131,32 @@ describe('deterministic policy enforcement', () => {
   });
 });
 
+describe('simulation is reported, never asserted', () => {
+  const sim = (d: ReturnType<typeof evaluate>) => d.checks.find((c) => c.id === 'simulation');
+
+  it('does not claim a simulation result the engine never produced', () => {
+    // The engine is pure and never reaches the network. This row used to read
+    // "No unexpected state change" on every pass, stating the outcome of a
+    // simulation that had not been performed. Real simulation lives in the
+    // executor, which refuses to submit when estimateGas or simulateContract
+    // fails.
+    const d = evaluate(agent(), intent(), treasury);
+    expect(sim(d)?.passed).toBe(true);
+    expect(sim(d)?.detail).not.toContain('No unexpected state change');
+    expect(sim(d)?.detail).toContain('Required before submission');
+  });
+
+  it('says plainly that shadow mode simulates nothing on chain', () => {
+    const d = evaluate(agent({ mode: 'shadow' }), intent(), treasury, { simulated: true });
+    expect(sim(d)?.detail).toContain('Not performed');
+  });
+
+  it('still reports the full set of eleven checks', () => {
+    expect(evaluate(agent(), intent(), treasury).checks).toHaveLength(11);
+    expect(evaluate(agent(), intent({ amount: 999 }), treasury).checks).toHaveLength(11);
+  });
+});
+
 describe('risk severity floor', () => {
   it('does not let benign factors dilute an extreme signal', () => {
     const a = agent({ constitution: constitution({ riskThreshold: 99, unknownRecipient: 'allow' }) });

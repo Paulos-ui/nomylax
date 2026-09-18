@@ -3,6 +3,7 @@ import { evaluate, nextState } from '@/lib/policy-engine';
 import { getRepository } from '@/server/repo';
 import { fail, guard, intentSchema, parse, requireSession, serverError } from '@/server/api';
 import { parseAmount, tokenSpec, MoneyError } from '@/lib/money';
+import { applyDecision, debitTreasury, rollCounters } from '@/lib/spend';
 import { execute } from '@/server/execution/executor';
 import { activeNetwork } from '@/server/execution/chain';
 
@@ -30,6 +31,11 @@ export async function POST(req: Request) {
   try {
     const repo = getRepository();
 
+    // One clock reading for the whole evaluation, so a request crossing a UTC
+    // midnight cannot roll the counters against one boundary and write them
+    // back against the next.
+    const now = Date.now();
+
     // ---- Authoritative state. Nothing here comes from the request. ----
     const agent = await repo.getAgent(agentId);
     if (!agent) return fail(404, 'Agent not found');
@@ -52,7 +58,7 @@ export async function POST(req: Request) {
       return fail(400, e instanceof MoneyError ? e.message : 'Amount could not be parsed');
     }
 
-    const authoritative = { ...agent, constitution: version.constitution };
+    const authoritative = { ...agent, ...rollCounters(agent, now), constitution: version.constitution };
     const simulated = mode === 'shadow' || agent.mode === 'shadow';
 
     const decision = evaluate(
@@ -89,7 +95,19 @@ export async function POST(req: Request) {
 
     const updated = { ...authoritative, riskScore: decision.risk.score };
     updated.state = nextState(updated, decision);
-    await repo.saveAgent({ ...agent, riskScore: decision.risk.score, state: updated.state });
+
+    // Settled means value actually left the treasury. A hash only ever arrives
+    // from the executor after the network returns a receipt, so requiring one
+    // here keeps the counters tied to real movement rather than to approval.
+    const settled = !simulated && decision.verdict === 'execute' && !!decision.txHash;
+    const counters = applyDecision(authoritative, decision, { settled, now });
+
+    await repo.saveAgent({
+      ...agent, ...counters, riskScore: decision.risk.score, state: updated.state,
+    });
+    if (settled) {
+      await repo.saveTreasury(agent.workspaceId, debitTreasury(treasury, decision.request.amount));
+    }
     await repo.recordDecision(agent.workspaceId, decision);
     await repo.appendAudit({
       id: `aud_${decision.id}`,

@@ -37,6 +37,14 @@ export interface Agent {
   spentToday: number;
   spentMonth: number;
   failedCount: number;
+  /**
+   * UTC period the two counters above belong to, as YYYY-MM-DD and YYYY-MM.
+   * Without these a counter cannot be told apart from a stale one, so a budget
+   * would either never reset or reset on every read. Optional so records
+   * written before spend accounting existed keep their values.
+   */
+  counterDay?: string;
+  counterMonth?: string;
   riskScore: number;
   /** Present only for agents connected over HTTP. Never contains secrets. */
   endpoint?: string;

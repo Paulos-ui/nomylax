@@ -121,12 +121,22 @@ export function evaluate(
   const hardFail = checks.find((k) => !k.passed && k.hard);
   const softFail = checks.find((k) => !k.passed && !k.hard);
 
-  const simulationOk = !hardFail;
+  // This engine is pure and never touches the network, so it cannot simulate
+  // anything. Real simulation happens in the executor, which runs estimateGas
+  // or simulateContract and refuses to submit when either fails. This row
+  // records that the gate is in force. It previously read "No unexpected state
+  // change" on every pass, asserting the result of a simulation that had not
+  // been performed and would not be performed at all in shadow mode.
+  const clearedForSimulation = !hardFail;
   checks.push({
     id: 'simulation',
-    name: 'Transaction simulation',
-    detail: simulationOk ? 'No unexpected state change' : 'Not reached',
-    passed: simulationOk,
+    name: 'Execution simulation',
+    detail: !clearedForSimulation
+      ? 'Not reached'
+      : opts.simulated
+        ? 'Not performed — shadow mode settles nothing on chain'
+        : 'Required before submission; the executor refuses to submit if it fails',
+    passed: clearedForSimulation,
     hard: true,
   });
 

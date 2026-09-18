@@ -1584,7 +1584,7 @@ var SCENES = {
     checks:[
       ['Allowed asset','USDC',true],['Single transaction limit','$4.50 / $10.00',true],
       ['Daily budget remaining','$20.50 / $25.00',true],['Recipient allowlist','Match found',true],
-      ['Emergency reserve','Untouched',true],['Risk score','12 · LOW',true],['Simulation','No unexpected state change',true]
+      ['Emergency reserve','Untouched',true],['Risk score','12 · LOW',true],['Execution simulation','Required before submission',true]
     ],
     verdict:'Execute', vclass:'pass', rlabel:'Settlement', rval:'Base · USDC'
   },
@@ -1594,7 +1594,7 @@ var SCENES = {
     checks:[
       ['Allowed asset','USDC',true],['Single transaction limit','$80.00 / $25.00',false],
       ['Daily budget remaining','$18.00 / $50.00',false],['Recipient allowlist','No match',false],
-      ['Emergency reserve','Would breach $100',false],['Risk score','91 · CRITICAL',false],['Simulation','Not reached',false]
+      ['Emergency reserve','Would breach $100',false],['Risk score','91 · CRITICAL',false],['Execution simulation','Not reached',false]
     ],
     verdict:'Blocked', vclass:'fail', rlabel:'Funds protected', rval:'$80.00'
   }

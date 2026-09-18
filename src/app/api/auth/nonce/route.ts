@@ -23,8 +23,16 @@ export async function POST(req: Request) {
   try {
     const domain = new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://nomylax.app').host;
     const chainId = activeNetwork().chainId;
-    const nonce = issueNonce(address);
-    const message = buildChallenge({ domain, address, nonce, chainId });
+
+    // One clock reading for both halves. The nonce encodes its own expiry as
+    // issue time + TTL, so /api/auth/verify recovers this exact millisecond and
+    // rebuilds the challenge byte for byte. Two separate Date.now() calls would
+    // differ by a millisecond often enough to fail that comparison at random.
+    const now = Date.now();
+    const nonce = issueNonce(address, now);
+    const message = buildChallenge({
+      domain, address, nonce, chainId, issuedAt: new Date(now).toISOString(),
+    });
 
     authLog('AUTH_NONCE_ISSUE', 'ok', {
       address, domain, chainId, nonce: noncePreview(nonce),

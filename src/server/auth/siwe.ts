@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { verifyMessage } from 'viem';
+import { getAddress, verifyMessage } from 'viem';
 import { authSecret } from './session';
 
 /**
@@ -90,15 +90,46 @@ export function sweepNonces(now = Date.now()) {
   for (const [k, expiresAt] of used) if (expiresAt <= now) used.delete(k);
 }
 
+/**
+ * Recovers the millisecond at which a nonce was issued.
+ *
+ * The expiry segment is written as issue time + NONCE_TTL_MS, so the issue time
+ * is recoverable from the token itself with no shared state. This is what lets
+ * /api/auth/verify rebuild the challenge instead of trusting the message the
+ * client submits.
+ *
+ * Call this only on a nonce that consumeNonce has already accepted. The expiry
+ * segment is covered by the HMAC tag, but this function does not check the tag,
+ * so on its own it is reading unauthenticated input.
+ */
+export function nonceIssuedAt(nonce: string): number | null {
+  if (typeof nonce !== 'string' || !NONCE_SHAPE.test(nonce)) return null;
+  const expiresAt = parseInt(nonce.slice(RAND_LEN, RAND_LEN + EXP_LEN), 36);
+  if (!Number.isFinite(expiresAt)) return null;
+  return expiresAt - NONCE_TTL_MS;
+}
+
 export function resetNonces() { used.clear(); }
 
+/**
+ * Builds the exact text the wallet is asked to sign.
+ *
+ * Every field is derived from the nonce, the deployment's own configuration, or
+ * the address the nonce is bound to. Nothing here may depend on request content
+ * that a caller could vary, because /api/auth/verify rebuilds this string and
+ * requires a byte for byte match before it will accept a signature over it.
+ *
+ * The address is EIP-55 checksummed so the same wallet yields the same
+ * challenge whatever casing the client sent.
+ */
 export function buildChallenge(params: {
   domain: string; address: string; nonce: string; chainId: number; issuedAt?: string;
 }): string {
   const issuedAt = params.issuedAt ?? new Date().toISOString();
+  const address = getAddress(params.address);
   return [
     `${params.domain} wants you to sign in with your Ethereum account:`,
-    params.address,
+    address,
     '',
     'Sign in to Nomylax. This signature proves you control this wallet. It does not grant Nomylax permission to move funds and does not cost gas.',
     '',
