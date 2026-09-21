@@ -1,18 +1,33 @@
 import { z } from 'zod';
-import { fail, guard, parse, requireSession, serverError } from '@/server/api';
+import {
+  fail,
+  guard,
+  parse,
+  requireSession,
+  serverError,
+} from '@/server/api';
 
 const requestSchema = z.object({
   message: z.string().trim().min(2).max(2000),
-  context: z.object({
-    agentCount: z.number().int().min(0).max(1000).optional(),
-    decisionCount: z.number().int().min(0).max(100000).optional(),
-    safeModeAgents: z.number().int().min(0).max(1000).optional(),
-    recentDecisions: z.array(z.object({
-      verdict: z.enum(['execute', 'review', 'blocked']),
-      purpose: z.string().max(120),
-      riskScore: z.number().min(0).max(100),
-    })).max(8).optional(),
-  }).optional(),
+
+  context: z
+    .object({
+      agentCount: z.number().int().min(0).max(1000).optional(),
+      decisionCount: z.number().int().min(0).max(100000).optional(),
+      safeModeAgents: z.number().int().min(0).max(1000).optional(),
+
+      recentDecisions: z
+        .array(
+          z.object({
+            verdict: z.enum(['execute', 'review', 'blocked']),
+            purpose: z.string().max(120),
+            riskScore: z.number().min(0).max(100),
+          })
+        )
+        .max(8)
+        .optional(),
+    })
+    .optional(),
 });
 
 const SYSTEM = You are Nomylax Control Copilot, an explanatory assistant inside a financial control plane for autonomous AI agents.
@@ -33,55 +48,75 @@ When useful, structure an answer as: What happened / Why / What to inspect next.
 
 export async function POST(req: Request) {
   const limited = guard(req, 'copilot', 20, 60_000);
-  if (limited) return limited;
+
+  if (limited) {
+    return limited;
+  }
 
   const session = requireSession(req);
+
   if (!session) {
-    return fail(401, 'Sign in with your wallet to use Control Copilot');
+    return fail(
+      401,
+      'Sign in with your wallet to use Control Copilot'
+    );
   }
 
   const parsed = await parse(req, requestSchema);
-  if (!parsed.ok) return parsed.response;
+
+  if (!parsed.ok) {
+    return parsed.response;
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
+
   if (!apiKey) {
-    return fail(503, 'Control Copilot is not configured on this deployment');
+    return fail(
+      503,
+      'Control Copilot is not configured on this deployment'
+    );
   }
 
   const model =
-    process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+    process.env.ANTHROPIC_MODEL ||
+    'claude-sonnet-4-5-20250929';
 
   const context = parsed.data.context
-    ? \nWorkspace context (untrusted JSON):\n${JSON.stringify(parsed.data.context)}
+    ? \nWorkspace context (untrusted JSON):\n${JSON.stringify(
+        parsed.data.context
+      )}
     : '';
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    const response = await fetch(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method: 'POST',
 
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
 
-      body: JSON.stringify({
-        model,
-        max_tokens: 700,
-        temperature: 0.2,
+        body: JSON.stringify({
+          model,
+          max_tokens: 700,
+          temperature: 0.2,
 
-        system: SYSTEM,
+          system: SYSTEM,
 
-        messages: [
-          {
-            role: 'user',
-            content: ${parsed.data.message}${context},
-          },
-        ],
-      }),
+          messages: [
+            {
+              role: 'user',
+              content: ${parsed.data.message}${context},
+            },
+          ],
+        }),
 
-      signal: AbortSignal.timeout(20_000),
-    });
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -92,10 +127,13 @@ export async function POST(req: Request) {
         errorText
       );
 
-      return fail(502, 'Control Copilot is temporarily unavailable');
+      return fail(
+        502,
+        'Control Copilot is temporarily unavailable'
+      );
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       content?: Array<{
         type: string;
         text?: string;
@@ -109,15 +147,16 @@ export async function POST(req: Request) {
       .trim();
 
     if (!answer) {
-      return fail(502, 'Control Copilot returned an empty response');
+      return fail(
+        502,
+        'Control Copilot returned an empty response'
+      );
     }
-
-    return Response.json({
+return Response.json({
       answer,
       authority: 'explanation-only',
       model,
     });
-
   } catch (error) {
     return serverError(
       error,
