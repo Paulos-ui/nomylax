@@ -89,3 +89,28 @@ export function Empty({ title, body, action }: { title: string; body: string; ac
     </div>
   );
 }
+
+/**
+ * Stands in for a chart with no data behind it.
+ *
+ * Sized to roughly the height of the chart it replaces so the dashboard does
+ * not reflow as history accumulates, and deliberately plain: a placeholder
+ * skeleton or a flat baseline both read as "a chart that happens to be quiet",
+ * which is the impression these panels must not give. The note says which
+ * event will populate it.
+ */
+export function ChartEmpty({ line, note }: { line: string; note: string }) {
+  return (
+    <div
+      style={{
+        flex: 1, minHeight: 190, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+        gap: 10, padding: '20px 16px',
+        border: '1px dashed var(--line-2)', borderRadius: 3,
+      }}
+    >
+      <span className="label" style={{ color: 'var(--text-2)' }}>{line}</span>
+      <p style={{ color: 'var(--text-3)', fontSize: 12.5, maxWidth: '42ch', margin: 0 }}>{note}</p>
+    </div>
+  );
+}

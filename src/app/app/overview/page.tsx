@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useWorkspace } from '@/lib/store';
 import { AreaChart, Donut, RiskGauge } from '@/components/charts/Charts';
-import { Stat, VerdictBadge, StateBadge, ModeBadge, PageHead, Empty } from '@/components/ui/Bits';
-import { TREASURY_SERIES, ALLOCATION } from '@/lib/seed';
+import { Stat, VerdictBadge, StateBadge, ModeBadge, PageHead, Empty, ChartEmpty } from '@/components/ui/Bits';
+import { treasuryHistory, outflowByAsset, changePct, axisLabels, settled } from '@/lib/series';
 import { usd, usdCompact, ago, clock } from '@/lib/format';
 import { bandOf } from '@/lib/risk-engine';
 
@@ -28,6 +28,14 @@ export default function Overview() {
   const runway = dailyBurn > 0 ? Math.floor((treasury.available - treasury.reserve) / dailyBurn) : Infinity;
   const avgRisk = Math.round(agents.reduce((s, a) => s + a.riskScore, 0) / agents.length);
 
+  // Charts are reconstructed from recorded decisions, not from a fixed series.
+  // Both render an empty state when nothing has settled, because a treasury
+  // that has released nothing has no curve and no outflow mix to show.
+  const history = treasuryHistory(treasury, decisions);
+  const drift = changePct(history);
+  const outflow = outflowByAsset(decisions);
+  const settledCount = settled(decisions).length;
+
   return (
     <>
       <PageHead
@@ -37,7 +45,7 @@ export default function Overview() {
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)' }}>
-        <div style={{ background: '#151A26' }}><Stat label="Treasury TVL" value={usdCompact(treasury.total)} sub={`${usd(treasury.available)} available`} /></div>
+        <div style={{ background: '#151A26' }}><Stat label="Treasury declared" value={usdCompact(treasury.total)} sub={`${usd(treasury.available)} available`} /></div>
         <div style={{ background: '#151A26' }}><Stat label="Active agents" value={agents.filter((a) => a.mode === 'live').length} sub={`${agents.length} registered`} /></div>
         <div style={{ background: '#151A26' }}><Stat label="Decisions" value={decisions.length} sub={`${executed.length} executed`} /></div>
         <div style={{ background: '#151A26' }}><Stat label="Value protected" value={usd(blockedValue)} tone="gold" sub={`${decisions.filter((d) => d.verdict === 'blocked').length} blocked`} /></div>
@@ -49,30 +57,61 @@ export default function Overview() {
         <div className="card">
           <div className="card-hd">
             <div>
-              <span className="label">Treasury performance · 7D</span>
+              <span className="label">Treasury balance · 7D</span>
               <div className="num" style={{ fontSize: 24, marginTop: 8 }}>{usdCompact(treasury.total)}</div>
             </div>
-            <span className="num" style={{ color: '#3FD08A', fontSize: 12.5 }}>+7.42%</span>
+            {drift !== null ? (
+              <span className="num" style={{ color: drift < 0 ? '#E8B04B' : 'var(--text-3)', fontSize: 12.5 }}>
+                {drift > 0 ? '+' : ''}{drift}%
+              </span>
+            ) : null}
           </div>
           <div className="card-bd">
-            <AreaChart data={TREASURY_SERIES} labels={['May 16', 'May 18', 'May 20', 'May 22']} />
+            {settledCount ? (
+              <>
+                <AreaChart data={history.map((p) => p.value)} labels={axisLabels(history)} />
+                <p className="hint" style={{ marginTop: 12 }}>
+                  Reconstructed from settled outflow. Deposits and transfers made outside
+                  Nomylax do not appear here — this is what the control plane released,
+                  not an on-chain balance history.
+                </p>
+              </>
+            ) : (
+              <ChartEmpty
+                line="Nothing has settled from this treasury yet."
+                note="The curve is built from decisions the engine executed, so there is nothing to plot until the first one settles."
+              />
+            )}
           </div>
         </div>
 
         <div className="card">
-          <div className="card-hd"><span className="label">Treasury allocation</span></div>
+          <div className="card-hd"><span className="label">Outflow by asset</span></div>
           <div className="card-bd" style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Donut slices={ALLOCATION} />
-            <div style={{ flex: 1, minWidth: 150 }}>
-              {ALLOCATION.map((s) => (
-                <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--text-2)' }}>
-                    <i style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: 'block' }} />{s.name}
-                  </span>
-                  <span className="num" style={{ color: '#E6EAF2' }}>{s.pct}%</span>
+            {outflow.length ? (
+              <>
+                <Donut slices={outflow} />
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  {outflow.map((s) => (
+                    <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--text-2)' }}>
+                        <i style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: 'block' }} />{s.name}
+                      </span>
+                      <span className="num" style={{ color: '#E6EAF2' }}>{s.pct}%</span>
+                    </div>
+                  ))}
+                  <p className="hint" style={{ marginTop: 12 }}>
+                    Where value went. Not a holdings breakdown — Nomylax does not custody
+                    assets or read balances.
+                  </p>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <ChartEmpty
+                line="No outflow recorded."
+                note="This breaks down assets the agents actually moved. It stays empty until something settles."
+              />
+            )}
           </div>
         </div>
       </div>

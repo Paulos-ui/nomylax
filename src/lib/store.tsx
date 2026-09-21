@@ -19,16 +19,24 @@ interface State {
   onboarded: boolean;
 }
 
-const DEFAULT_TREASURY: Treasury = {
-  total: 24732.68,
-  available: 21430.12,
-  allocated: 3202.56,
-  reserve: 100,
-};
+/**
+ * A workspace opens with nothing in it.
+ *
+ * This previously started at $24,732.68 across four fields, which meant every
+ * visitor's first dashboard reported a treasury balance, an allocated figure
+ * and a reserve that nobody had declared and no wallet held. The number then
+ * flowed into the reserve check and the liquidity risk signal, so invented
+ * capital was deciding real verdicts.
+ *
+ * The owner declares the envelope during onboarding instead. Until they do,
+ * available is zero and the reserve check refuses everything — which is the
+ * correct behaviour for a control plane that has not been told what it guards.
+ */
+const EMPTY_TREASURY: Treasury = { total: 0, available: 0, allocated: 0, reserve: 0 };
 
 const initial: State = {
   workspace: null,
-  treasury: DEFAULT_TREASURY,
+  treasury: EMPTY_TREASURY,
   agents: [],
   decisions: [],
   onboarded: false,
@@ -38,6 +46,8 @@ interface Ctx extends State {
   ready: boolean;
   connect: (address: string) => void;
   createWorkspace: (w: Omit<Workspace, 'createdAt'>) => void;
+  /** Owner-declared budget envelope. Not a balance read from chain. */
+  declareTreasury: (d: { total: number; reserve: number }) => void;
   addAgent: (a: {
     name: string; type: Agent['type']; mode?: AgentMode; endpoint?: string;
     constitution?: Partial<Constitution>; profile?: RiskProfile;
@@ -85,6 +95,26 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const createWorkspace = useCallback((w: Omit<Workspace, 'createdAt'>) => {
     setState((s) => ({ ...s, workspace: { ...w, createdAt: Date.now() } }));
+  }, []);
+
+  /**
+   * Mirrors the delta semantics of PATCH /api/workspace. Raising the declared
+   * total is a top-up and adds to available; it does not restore value that has
+   * already settled out, which is what assigning available = total would do.
+   */
+  const declareTreasury: Ctx['declareTreasury'] = useCallback(({ total, reserve }) => {
+    setState((s) => {
+      const delta = total - s.treasury.total;
+      return {
+        ...s,
+        treasury: {
+          ...s.treasury,
+          total,
+          reserve: Math.min(reserve, total),
+          available: Math.max(0, s.treasury.available + delta),
+        },
+      };
+    });
   }, []);
 
   const addAgent: Ctx['addAgent'] = useCallback((a) => {
@@ -179,10 +209,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<Ctx>(
     () => ({
-      ...state, ready, connect, createWorkspace, addAgent, updateConstitution,
+      ...state, ready, connect, createWorkspace, declareTreasury, addAgent, updateConstitution,
       setMode, resetState, submit, recordDecisions, completeOnboarding, hardReset,
     }),
-    [state, ready, connect, createWorkspace, addAgent, updateConstitution, setMode, resetState, submit, recordDecisions, completeOnboarding, hardReset],
+    [state, ready, connect, createWorkspace, declareTreasury, addAgent, updateConstitution, setMode, resetState, submit, recordDecisions, completeOnboarding, hardReset],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

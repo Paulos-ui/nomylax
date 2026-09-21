@@ -2,11 +2,18 @@ import type { Decision, Treasury, Workspace } from '@/lib/types';
 import type { AuditEvent, ConstitutionVersion, Repository, StoredAgent } from './types';
 
 /**
- * Development repository.
+ * Process local repository.
  *
- * Satisfies the same contract as the Postgres implementation so routes are
- * identical in both. It is process local and resets on restart, which is why
- * getRepository refuses to select it in production.
+ * Satisfies the same contract as a Postgres implementation would, so no route
+ * needs to know which is active. Currently it is the only implementation, and
+ * getRepository selects it everywhere including production after logging
+ * STORAGE_DEGRADED. Everything here is lost on restart and invisible to every
+ * other instance: on a serverless deployment two consecutive requests may not
+ * agree on how much an agent has spent.
+ *
+ * The bounded slices below are a memory ceiling, not a retention policy. They
+ * are also why this cannot stand in for a durable audit trail — the oldest
+ * entries are discarded silently once the cap is reached.
  */
 export class MemoryRepository implements Repository {
   readonly kind = 'memory' as const;

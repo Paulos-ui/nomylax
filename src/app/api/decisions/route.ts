@@ -10,6 +10,39 @@ import { activeNetwork } from '@/server/execution/chain';
 export const runtime = 'nodejs';
 
 /**
+ * Decision history for the caller's workspace.
+ *
+ * Read only. Every record here was produced by the evaluator below; nothing is
+ * synthesised for display, so an empty workspace returns an empty list rather
+ * than sample rows.
+ */
+export async function GET(req: Request) {
+  const limited = guard(req, 'decisions-read', 120);
+  if (limited) return limited;
+
+  const session = requireSession(req);
+  if (!session) return fail(401, 'Authentication required');
+
+  try {
+    const url = new URL(req.url);
+    const raw = Number(url.searchParams.get('limit') ?? 50);
+    const limit = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.trunc(raw))) : 50;
+    const agentId = url.searchParams.get('agentId');
+
+    const repo = getRepository();
+    const workspace = await repo.getWorkspaceByOwner(session.address);
+    if (!workspace) return NextResponse.json({ decisions: [] });
+
+    const all = await repo.listDecisions(workspace.id, agentId ? 500 : limit);
+    const decisions = (agentId ? all.filter((d) => d.agentId === agentId) : all).slice(0, limit);
+
+    return NextResponse.json({ decisions, storage: repo.kind });
+  } catch (e) {
+    return serverError(e);
+  }
+}
+
+/**
  * Evaluate an economic intent.
  *
  * The caller sends an agentId and an intent, nothing more. The agent, its

@@ -9,13 +9,13 @@ import { PROFILE_TEMPLATES, PROFILE_COPY, AGENT_TEMPLATES, DEMO_RECIPIENTS } fro
 import { ConstitutionBuilder } from '@/components/onboarding/ConstitutionBuilder';
 import { HelmetMark } from '@/components/ui/Mark';
 import { usd, shortAddr } from '@/lib/format';
-import type { AgentType, Constitution, RiskProfile, ShadowReport } from '@/lib/types';
+import type { AgentType, Constitution, RiskProfile, ShadowReport, Treasury } from '@/lib/types';
 
 const STEPS = ['Connect', 'Workspace', 'Agent', 'Configure', 'Constitution', 'Shadow', 'Activate'];
 
 export default function Onboarding() {
   const router = useRouter();
-  const { createWorkspace, addAgent, treasury, completeOnboarding, setMode } = useWorkspace();
+  const { createWorkspace, declareTreasury, addAgent, completeOnboarding, setMode } = useWorkspace();
   const wallet = useWallet();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -28,6 +28,21 @@ export default function Onboarding() {
   const [wsName, setWsName] = useState('Guardian Treasury');
   const [wsLabel, setWsLabel] = useState('Primary treasury');
   const [profile, setProfile] = useState<RiskProfile>('conservative');
+
+  /**
+   * The owner declares the envelope here rather than inheriting a seeded one.
+   * This is not decoration: the reserve check and the liquidity risk signal
+   * both read treasury.available, so the shadow run in step 6 and every
+   * verdict after activation depend on this number being the owner's own.
+   */
+  const [wsTotal, setWsTotal] = useState('');
+  const [wsReserve, setWsReserve] = useState('');
+
+  const declared = useMemo<Treasury>(() => {
+    const total = Math.max(0, Number(wsTotal) || 0);
+    const reserve = Math.min(Math.max(0, Number(wsReserve) || 0), total);
+    return { total, available: total, allocated: 0, reserve };
+  }, [wsTotal, wsReserve]);
 
   const [source, setSource] = useState<'demo' | 'existing' | null>(null);
   const [agentType, setAgentType] = useState<Exclude<AgentType, 'custom'>>('research');
@@ -47,12 +62,15 @@ export default function Onboarding() {
   const owner = wallet.address;
   const canAdvance = useMemo(() => {
     if (step === 0) return !!owner && wallet.isAuthenticated;
-    if (step === 1) return wsName.trim().length > 1;
+    // A zero envelope fails the reserve check on every request, so letting the
+    // owner past this step would produce a shadow run where everything blocks
+    // for a reason that has nothing to do with the constitution they wrote.
+    if (step === 1) return wsName.trim().length > 1 && declared.total > 0;
     if (step === 2) return source !== null;
     if (step === 3) return agentName.trim().length > 1 && (source === 'demo' || endpoint.trim().length > 4);
     if (step === 5) return !!report;
     return true;
-  }, [step, owner, wallet.isAuthenticated, wsName, source, agentName, endpoint, report]);
+  }, [step, owner, wallet.isAuthenticated, wsName, declared.total, source, agentName, endpoint, report]);
 
   const applyProfile = (p: RiskProfile) => {
     setProfile(p);
@@ -74,7 +92,7 @@ export default function Onboarding() {
         failedCount: 0, riskScore: 0, createdAt: Date.now(),
         endpoint: source === 'existing' ? endpoint : undefined,
       };
-      const r = await runShadow(ghost, treasury, { requests: 14 });
+      const r = await runShadow(ghost, declared, { requests: 14 });
       setReport(r);
     } catch (e: any) {
       setError(e?.message ?? 'Simulation could not complete.');
@@ -88,6 +106,7 @@ export default function Onboarding() {
       name: wsName, treasuryLabel: wsLabel, riskProfile: profile,
       network: wallet.chainName, owner: owner ?? null,
     });
+    declareTreasury({ total: declared.total, reserve: declared.reserve });
     const agent = addAgent({
       name: agentName, type: agentType, mode: 'live', profile, constitution,
       endpoint: source === 'existing' ? endpoint : undefined,
@@ -144,6 +163,34 @@ export default function Onboarding() {
                 <input className="input" value={wallet.chainName} readOnly style={{ color: 'var(--text-3)' }} />
                 <span className="hint">Set by NEXT_PUBLIC_CHAIN_ID.</span>
               </label>
+            </div>
+
+            <div style={{ marginTop: 28, maxWidth: 760 }}>
+              <div className="label" style={{ marginBottom: 12 }}>Declare the treasury envelope</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 18 }}>
+                <label className="field"><span style={{ fontSize: 13 }}>Treasury total (USD)</span>
+                  <input
+                    className="input num-input" inputMode="decimal" placeholder="0.00"
+                    value={wsTotal} onChange={(e) => setWsTotal(e.target.value.replace(/[^0-9.]/g, ''))}
+                  />
+                  <span className="hint">
+                    The amount you are putting under agent control. Nomylax does not take custody
+                    and does not read your wallet balance, so this figure is yours to state.
+                  </span>
+                </label>
+                <label className="field"><span style={{ fontSize: 13 }}>Emergency reserve (USD)</span>
+                  <input
+                    className="input num-input" inputMode="decimal" placeholder="0.00"
+                    value={wsReserve} onChange={(e) => setWsReserve(e.target.value.replace(/[^0-9.]/g, ''))}
+                  />
+                  <span className="hint">A floor no agent can spend below. Capped at the total.</span>
+                </label>
+              </div>
+              {declared.total > 0 ? (
+                <div className="num" style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 14 }}>
+                  Spendable after reserve: {usd(Math.max(declared.total - declared.reserve, 0))}
+                </div>
+              ) : null}
             </div>
 
             <div style={{ marginTop: 28 }}>
@@ -257,6 +304,7 @@ export default function Onboarding() {
               {[
                 ['Agent', agentName],
                 ['Source', source === 'demo' ? 'Demo agent' : 'Connected endpoint'],
+                ['Treasury declared', usd(declared.total)],
                 ['Policy profile', PROFILE_COPY[profile].title],
                 ['Daily budget', usd(constitution.dailyLimit)],
                 ['Max transaction', usd(constitution.maxTransaction)],

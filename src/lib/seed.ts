@@ -1,6 +1,15 @@
 import { PROFILE_TEMPLATES, DEMO_RECIPIENTS } from './constitutions';
 import type { Agent, AgentType } from './types';
 
+/**
+ * A new agent, with nothing recorded against it yet.
+ *
+ * riskScore starts at 0 rather than at a plausible-looking baseline. The score
+ * is an output of the risk engine over a specific request, so an agent that has
+ * never submitted one has no score — and a dashboard reading "12" before the
+ * first decision is a number the engine never produced. The first evaluation
+ * overwrites it with a real one.
+ */
 export const seedAgent = (
   id: string,
   name: string,
@@ -16,20 +25,20 @@ export const seedAgent = (
   spentToday: 0,
   spentMonth: 0,
   failedCount: 0,
-  riskScore: 12,
+  riskScore: 0,
   createdAt: Date.now(),
   ...over,
 });
 
-/** Treasury performance series used by the overview and treasury charts. */
-export const TREASURY_SERIES = [
-  22.41, 22.62, 22.35, 22.98, 22.81, 23.34, 23.19, 23.72, 23.58, 24.11, 23.96, 24.44, 24.61, 24.73,
-];
-
-export const DAILY_BURN = [212, 288, 176, 204, 141, 266, 312];
-export const ALLOCATION = [
-  { name: 'USDC', pct: 58.3, color: '#2962FF' },
-  { name: 'ETH', pct: 20.1, color: '#66E1FF' },
-  { name: 'ETH LSTs', pct: 12.7, color: '#5C6784' },
-  { name: 'Other assets', pct: 8.9, color: '#D4AF37' },
-];
+/*
+ * TREASURY_SERIES, DAILY_BURN and ALLOCATION used to live here: a rising
+ * balance curve, a burn histogram and a four-asset portfolio mix, all fixed
+ * arrays, rendered on the overview and treasury pages beside figures computed
+ * from real workspace state. Nothing marked them apart, so the pages showed an
+ * asset allocation for a treasury that held nothing and a performance line for
+ * capital that had never moved.
+ *
+ * They are gone. src/lib/series.ts derives the same shapes from decisions the
+ * engine actually recorded and returns empty where there is no history, so the
+ * pages render an empty state instead of an invented one.
+ */
