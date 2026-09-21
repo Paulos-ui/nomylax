@@ -15,7 +15,7 @@ const requestSchema = z.object({
   }).optional(),
 });
 
-const SYSTEM = `You are Nomylax Control Copilot, an explanatory assistant inside a financial control plane for autonomous AI agents.
+const SYSTEM = You are Nomylax Control Copilot, an explanatory assistant inside a financial control plane for autonomous AI agents.
 
 Your job is to explain Nomylax concepts, policy outcomes, risk signals, transaction lifecycle, Base integration, and safer policy configuration in concise language.
 
@@ -29,51 +29,99 @@ SECURITY BOUNDARY:
 - Do not provide investment advice or promise financial outcomes.
 - If evidence is missing, say what is unknown instead of inventing it.
 
-When useful, structure an answer as: What happened / Why / What to inspect next. Keep answers practical and under 450 words.`;
+When useful, structure an answer as: What happened / Why / What to inspect next. Keep answers practical and under 450 words.;
 
 export async function POST(req: Request) {
   const limited = guard(req, 'copilot', 20, 60_000);
   if (limited) return limited;
 
   const session = requireSession(req);
-  if (!session) return fail(401, 'Sign in with your wallet to use Control Copilot');
+  if (!session) {
+    return fail(401, 'Sign in with your wallet to use Control Copilot');
+  }
 
   const parsed = await parse(req, requestSchema);
   if (!parsed.ok) return parsed.response;
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return fail(503, 'Control Copilot is not configured on this deployment');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return fail(503, 'Control Copilot is not configured on this deployment');
+  }
 
-  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-  const context = parsed.data.context ? `\nWorkspace context (untrusted JSON):\n${JSON.stringify(parsed.data.context)}` : '';
+  const model =
+    process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+
+  const context = parsed.data.context
+    ? \nWorkspace context (untrusted JSON):\n${JSON.stringify(parsed.data.context)}
+    : '';
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+
       body: JSON.stringify({
         model,
+        max_tokens: 700,
         temperature: 0.2,
-        max_completion_tokens: 700,
+
+        system: SYSTEM,
+
         messages: [
-          { role: 'system', content: SYSTEM },
-          { role: 'user', content: `${parsed.data.message}${context}` },
+          {
+            role: 'user',
+            content: ${parsed.data.message}${context},
+          },
         ],
       }),
+
       signal: AbortSignal.timeout(20_000),
     });
 
     if (!response.ok) {
-      console.error('[nomylax] groq upstream failure', response.status);
+      const errorText = await response.text();
+
+      console.error(
+        '[nomylax] anthropic upstream failure',
+        response.status,
+        errorText
+      );
+
       return fail(502, 'Control Copilot is temporarily unavailable');
     }
 
-    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const answer = data.choices?.[0]?.message?.content?.trim();
-    if (!answer) return fail(502, 'Control Copilot returned an empty response');
+    const data = await response.json() as {
+      content?: Array<{
+        type: string;
+        text?: string;
+      }>;
+    };
 
-    return Response.json({ answer, authority: 'explanation-only', model });
+    const answer = data.content
+      ?.filter((item) => item.type === 'text')
+      .map((item) => item.text ?? '')
+      .join('')
+      .trim();
+
+    if (!answer) {
+      return fail(502, 'Control Copilot returned an empty response');
+    }
+
+    return Response.json({
+      answer,
+      authority: 'explanation-only',
+      model,
+    });
+
   } catch (error) {
-    return serverError(error, 'Control Copilot could not complete the request');
+    return serverError(
+      error,
+      'Control Copilot could not complete the request'
+    );
   }
 }
