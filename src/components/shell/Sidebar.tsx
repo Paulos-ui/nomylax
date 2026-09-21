@@ -14,6 +14,7 @@ const NAV = [
   ['Policies', '/app/policies'],
   ['Monitoring', '/app/monitoring'],
   ['Audit log', '/app/audit'],
+  ['Control Copilot', '/app/copilot'],
   ['Settings', '/app/settings'],
 ] as const;
 

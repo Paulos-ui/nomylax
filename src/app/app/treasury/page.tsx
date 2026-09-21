@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useWorkspace } from '@/lib/store';
 import { AreaChart, Donut, Bars } from '@/components/charts/Charts';
 import { PageHead, Stat } from '@/components/ui/Bits';
-import { TREASURY_SERIES, ALLOCATION, DAILY_BURN } from '@/lib/seed';
+import { treasuryHistory, dailySpend, outflowByAsset, changePct } from '@/lib/series';
 import { usd, usdCompact } from '@/lib/format';
 
 const RANGES = ['24H', '7D', '30D', 'ALL'];
@@ -17,8 +17,12 @@ export default function TreasuryPage() {
   const dailyBurn = agents.reduce((s, a) => s + a.spentToday, 0);
   const monthlyBurn = agents.reduce((s, a) => s + a.spentMonth, 0);
   const runway = dailyBurn > 0 ? Math.floor((treasury.available - treasury.reserve) / dailyBurn) : Infinity;
-  const outbound = decisions.filter((d) => d.verdict === 'execute').reduce((s, d) => s + d.request.amount, 0);
-  const slice = range === '24H' ? TREASURY_SERIES.slice(-4) : range === '30D' ? TREASURY_SERIES : TREASURY_SERIES.slice(-7);
+  const outbound = decisions.filter((d) => d.verdict === 'execute' && !d.simulated).reduce((s, d) => s + d.request.amount, 0);
+  const historyDays = range === '24H' ? 1 : range === '30D' ? 30 : range === 'ALL' ? 90 : 7;
+  const slice = treasuryHistory(treasury, decisions, historyDays);
+  const burnSeries = dailySpend(decisions, 7);
+  const allocation = outflowByAsset(decisions);
+  const performance = changePct(slice);
 
   return (
     <>
@@ -47,16 +51,20 @@ export default function TreasuryPage() {
         <div className="card">
           <div className="card-hd">
             <div><span className="label">Historical performance · {range}</span><div className="num" style={{ fontSize: 24, marginTop: 8 }}>{usdCompact(treasury.total)}</div></div>
-            <span className="num" style={{ color: '#3FD08A', fontSize: 12.5 }}>+7.42%</span>
+            <span className="num" style={{ color: performance === null ? 'var(--text-3)' : performance >= 0 ? '#3FD08A' : '#FF5C6C', fontSize: 12.5 }}>
+              {performance === null ? 'No history' : (performance >= 0 ? '+' : '') + performance + '%'}
+            </span>
           </div>
-          <div className="card-bd"><AreaChart data={slice} /></div>
+          <div className="card-bd">
+            {slice.length > 1 ? <AreaChart data={slice.map((p) => p.value)} /> : <div style={{ color: 'var(--text-3)', fontSize: 13 }}>Not enough recorded history yet.</div>}
+          </div>
         </div>
         <div className="card">
           <div className="card-hd"><span className="label">Asset allocation</span></div>
           <div className="card-bd" style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Donut slices={ALLOCATION} size={130} />
+            <Donut slices={allocation} size={130} />
             <div style={{ flex: 1, minWidth: 140 }}>
-              {ALLOCATION.map((s) => (
+              {allocation.map((s) => (
                 <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 9, color: 'var(--text-2)' }}><i style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: 'block' }} />{s.name}</span>
                   <span className="num" style={{ color: '#E6EAF2' }}>{s.pct}%</span>
@@ -70,7 +78,12 @@ export default function TreasuryPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, marginTop: 18 }}>
         <div className="card">
           <div className="card-hd"><span className="label">Burn, last 7 days</span></div>
-          <div className="card-bd"><Bars data={DAILY_BURN} /><div className="num" style={{ fontSize: 16, marginTop: 14 }}>{usd(DAILY_BURN[DAILY_BURN.length - 1], 0)} <span style={{ fontSize: 12, color: 'var(--text-3)' }}>most recent day</span></div></div>
+          <div className="card-bd">
+            <Bars data={burnSeries.map((p) => p.value)} />
+            <div className="num" style={{ fontSize: 16, marginTop: 14 }}>
+              {usd(burnSeries.at(-1)?.value ?? 0, 0)} <span style={{ fontSize: 12, color: 'var(--text-3)' }}>most recent day</span>
+            </div>
+          </div>
         </div>
         <div className="card">
           <div className="card-hd"><span className="label">Allocation by agent</span></div>

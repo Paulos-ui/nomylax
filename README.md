@@ -179,9 +179,23 @@ Full reference: [docs/API.md](./docs/API.md).
 [Agent strategy](./docs/AGENT_STRATEGY.md) ·
 [Incident response](./docs/INCIDENT_RESPONSE.md) ·
 [API](./docs/API.md) ·
-[Base integration](./docs/BASE_INTEGRATION.md)
+[Base integration](./docs/BASE_INTEGRATION.md) ·
+[Product strategy](./docs/PRODUCT_STRATEGY.md) ·
+[Business model](./docs/BUSINESS_MODEL.md)
 
 Public routes: `/trust` and `/docs`.
+
+## Control Copilot
+
+Nomylax includes an optional Groq-backed **Control Copilot** at `/app/copilot`. It explains policy outcomes, risk signals, Safe Mode, Shadow Mode and the transaction lifecycle. It is deliberately outside the authorization boundary: its output can never approve, sign or execute a transaction. Set `GROQ_API_KEY` server-side to enable it.
+
+## Product strategy and business model
+
+The initial wedge is bounded financial authority for autonomous agents: register an agent, define a Financial Constitution, gate economic intent, and retain an auditable decision trail. Expansion can add agent-framework integrations, protocol adapters, team policy administration and enterprise monitoring. See [Product strategy](./docs/PRODUCT_STRATEGY.md).
+
+Commercial packaging is planned around free/test, developer, pro, team/enterprise and infrastructure tiers. This repository does **not** claim existing customers or revenue. Token, revenue-share percentage and funding target are **not declared** and must not be fabricated. See [Business model](./docs/BUSINESS_MODEL.md).
+
+Submission evidence: [SUBMISSION_EVIDENCE.md](./SUBMISSION_EVIDENCE.md) · readiness checklist: [HACKATHON_READINESS.md](./HACKATHON_READINESS.md).
 
 ## Known limitations
 

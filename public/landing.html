@@ -604,6 +604,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 40px}
       <a href="#capabilities">Capabilities</a>
       <a href="#risk">Risk</a>
       <a href="#trust">Trust</a>
+      <a href="#strategy">Strategy</a>
     </nav>
     <div class="nav-cta">
       <a class="btn-text" href="#architecture">View architecture</a>
@@ -1306,11 +1307,11 @@ footer{border-top:1px solid var(--line);padding:48px 0 40px}
 
     <div class="stack" data-reveal style="--d:180ms">
       <div class="layer gold"><span class="li">L1</span><span class="ln">Owner authority</span><span class="ld">The human holds the keys and the capital. Every permission below is delegated, scoped and revocable.</span></div>
-      <div class="layer"><span class="li">L2</span><span class="ln">Base permission boundary</span><span class="ld">Onchain spend permissions cap what the system can move, independent of application logic.</span></div>
+      <div class="layer"><span class="li">L2</span><span class="ln">Base permission boundary</span><span class="ld">Spend-permission integration is designed as a second boundary; the current build does not claim it is wired onchain.</span></div>
       <div class="layer"><span class="li">L3</span><span class="ln">Policy engine</span><span class="ld">Deterministic evaluation of limits, recipients, assets and reserves. No model in the decision path.</span></div>
       <div class="layer"><span class="li">L4</span><span class="ln">Risk engine</span><span class="ld">Seven signals scored to NRS, compared against the agent's configured threshold.</span></div>
       <div class="layer"><span class="li">L5</span><span class="ln">Transaction simulation</span><span class="ld">The call is simulated before signing. Unexpected state changes fail the request.</span></div>
-      <div class="layer"><span class="li">L6</span><span class="ln">Execution</span><span class="ld">Approved actions are submitted to Base under the granted permission scope.</span></div>
+      <div class="layer"><span class="li">L6</span><span class="ln">Execution</span><span class="ld">When live execution is explicitly configured, approved actions enter the Base execution pipeline. Shadow Mode never settles.</span></div>
       <div class="layer"><span class="li">L7</span><span class="ln">Post-transaction verification</span><span class="ld">Settled results are checked against the intent that was approved. Divergence triggers Safe Mode.</span></div>
       <div class="layer gold"><span class="li">L8</span><span class="ln">Audit proof</span><span class="ld">Request, decision, policy version and outcome are written to an append-only record.</span></div>
     </div>
@@ -1360,6 +1361,27 @@ footer{border-top:1px solid var(--line);padding:48px 0 40px}
   </div>
 </section>
 
+<!-- ======================= STRATEGY / COMMERCIAL STATUS ======================= -->
+<section id="strategy">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Strategy & status</p>
+    <h2 data-reveal style="--d:80ms">A control layer that <em>complements the agent stack.</em></h2>
+    <p class="lead" data-reveal style="--d:140ms;margin-top:20px">Start with bounded financial authority for individual agents, then expand through agent-framework integrations, protocol adapters, team policy administration and enterprise monitoring.</p>
+    <div class="trust-grid" style="margin-top:34px">
+      <div class="tcell" data-reveal><div class="v" style="font-size:18px">Intent gating</div><div class="label">Product wedge</div></div>
+      <div class="tcell" data-reveal style="--d:60ms"><div class="v" style="font-size:18px">Developer → Pro → Teams</div><div class="label">Planned packaging</div></div>
+      <div class="tcell" data-reveal style="--d:120ms"><div class="v" style="font-size:18px">Not declared</div><div class="label">Token</div></div>
+      <div class="tcell" data-reveal style="--d:180ms"><div class="v" style="font-size:18px">Not declared</div><div class="label">Revenue share</div></div>
+      <div class="tcell" data-reveal style="--d:240ms"><div class="v" style="font-size:18px">Not declared</div><div class="label">Funding target</div></div>
+      <div class="tcell gold" data-reveal style="--d:300ms"><div class="v" style="font-size:18px">Explanation only</div><div class="label">AI Control Copilot</div></div>
+    </div>
+    <div style="margin-top:26px;display:flex;gap:12px;flex-wrap:wrap" data-reveal>
+      <a class="btn btn-ghost" href="/app/copilot">Open Control Copilot</a>
+      <a class="btn-text" href="/docs">Read technical documentation</a>
+    </div>
+  </div>
+</section>
+
 <!-- ======================= FINAL CTA ======================= -->
 <section class="final">
   <div class="wrap">
@@ -1400,7 +1422,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 40px}
       <div class="foot-links">
         <div class="foot-col"><span class="label">Product</span><a href="/app/onboarding">Launch app</a><a href="#capabilities">Capabilities</a><a href="#shadow">Shadow mode</a><a href="#risk">Risk engine</a></div>
         <div class="foot-col"><span class="label">System</span><a href="#architecture">Architecture</a><a href="/trust">Trust center</a><a href="#base">Base integration</a><a href="/docs">Documentation</a></div>
-        <div class="foot-col"><span class="label">Project</span><a href="https://github.com">GitHub</a><a href="#onboarding">Getting started</a><a href="#model">The model</a></div>
+        <div class="foot-col"><span class="label">Project</span><a href="https://github.com/paulos-ui/Nomylax" target="_blank" rel="noopener noreferrer">GitHub</a><a href="#onboarding">Getting started</a><a href="#model">The model</a></div>
       </div>
     </div>
     <div class="foot-bottom">
